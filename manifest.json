@@ -1,0 +1,25 @@
+{
+  "name": "Argeo — Argent de Poche",
+  "short_name": "Argeo",
+  "description": "Le tableau de bord argent de poche de Cassandre",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#EEF9D8",
+  "theme_color": "#C2F552",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

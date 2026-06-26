@@ -1,0 +1,1956 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+
+  <!-- ── iOS PWA faux plein écran ── -->
+  <meta name="mobile-web-app-capable"            content="yes">
+  <meta name="apple-mobile-web-app-capable"      content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title"        content="Argeo">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+
+  <!-- ── Android / Chrome PWA ── -->
+  <meta name="theme-color" content="#C2F552">
+  <link rel="manifest" href="manifest.json">
+
+  <title>Argeo</title>
+
+  <style>
+    /* ══════════════════════════════════════════════════════
+       01. TOKENS & CSS CUSTOM PROPERTIES
+       ══════════════════════════════════════════════════════ */
+    :root {
+      /* Palette */
+      --lime:       #C2F552;
+      --lime-dk:    #8FC919;
+      --purple:     #A259F7;
+      --orange:     #F97316;
+      --success:    #22C55E;
+      --pending:    #F59E0B;
+      --danger:     #EF4444;
+      --muted:      #94A3B8;
+
+      /* Surfaces */
+      --bg-body:    #EEF9D8;
+      --bg-card:    #FFFFFF;
+      --bg-parent:  #080E1C;
+      --bg-p-card:  #111827;
+      --bg-p-card2: #1C2538;
+
+      /* Textes */
+      --tx-dark:    #0F172A;
+      --tx-mid:     #475569;
+      --tx-light:   #94A3B8;
+      --tx-on-lime: #0F172A;
+      --tx-on-dark: #E2E8F0;
+
+      /* Typographie système iOS */
+      --font: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+
+      /* Espacements */
+      --s1:4px; --s2:8px; --s3:12px; --s4:16px;
+      --s5:20px; --s6:24px; --s7:28px; --s8:32px;
+
+      /* Rayons */
+      --r-s:10px; --r-m:18px; --r-l:24px; --r-xl:30px; --r-f:999px;
+
+      /* Safe Areas — Dynamic Island / iPhone notch / home bar */
+      --sat: env(safe-area-inset-top,    0px);
+      --sar: env(safe-area-inset-right,  0px);
+      --sab: env(safe-area-inset-bottom, 0px);
+      --sal: env(safe-area-inset-left,   0px);
+    }
+
+    /* ══════════════════════════════════════════════════════
+       02. RESET & BASE
+       ══════════════════════════════════════════════════════ */
+    *, *::before, *::after {
+      box-sizing: border-box; margin: 0; padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+    html, body {
+      height: 100%; overflow: hidden; /* body bloqué, scroll géré par views */
+      font-family: var(--font);
+      background: var(--bg-body);
+      color: var(--tx-dark);
+      -webkit-font-smoothing: antialiased;
+    }
+    button {
+      font-family: inherit; border: none; background: none;
+      cursor: pointer; touch-action: manipulation;
+      -webkit-user-select: none; user-select: none;
+    }
+    input {
+      font-family: inherit;
+      -webkit-appearance: none; appearance: none; border-radius: 0;
+    }
+
+    /* ══════════════════════════════════════════════════════
+       03. APP SHELL — faux plein écran iOS
+       #app couvre TOUT l'écran, y compris la Dynamic Island.
+       Les enfants gèrent leurs propres safe-area-inset.
+       ══════════════════════════════════════════════════════ */
+    #app { position: fixed; inset: 0; }
+
+    /* ══════════════════════════════════════════════════════
+       04. SYSTÈME DE VUES
+       ══════════════════════════════════════════════════════ */
+    .view {
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column; overflow: hidden;
+      transition: opacity .22s ease, transform .22s ease;
+      will-change: opacity, transform;
+    }
+    .view.is-hidden {
+      opacity: 0; pointer-events: none;
+      transform: translateX(6px) scale(0.982);
+    }
+
+    /* ══════════════════════════════════════════════════════
+       05. VUE ENFANT — Header
+       ══════════════════════════════════════════════════════ */
+    #view-child { background: var(--bg-body); }
+
+    .child-header {
+      display: flex; align-items: center; justify-content: space-between;
+      /* max() garantit un minimum même sans notch */
+      padding: max(var(--s4), calc(var(--sat) + var(--s2))) var(--s4) var(--s2);
+      flex-shrink: 0;
+    }
+    .app-logo { font-size: 22px; font-weight: 800; letter-spacing: -.5px; }
+
+    .btn-icon {
+      width: 44px; height: 44px; border-radius: var(--r-f);
+      background: rgba(0,0,0,.07);
+      display: flex; align-items: center; justify-content: center; font-size: 20px;
+      transition: transform .12s, background .12s;
+    }
+    .btn-icon:active { transform: scale(.88); background: rgba(0,0,0,.14); }
+
+    /* Zone scrollable enfant */
+    .child-scroll {
+      flex: 1; overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      padding: var(--s2) var(--s4) max(var(--s8), calc(var(--sab) + var(--s6)));
+      scroll-behavior: smooth;
+    }
+    .child-scroll::-webkit-scrollbar { display: none; }
+
+    /* ══════════════════════════════════════════════════════
+       06. BALANCE BLOCK
+       ══════════════════════════════════════════════════════ */
+    .balance-block {
+      background: var(--bg-card);
+      border-radius: var(--r-xl);
+      padding: var(--s6);
+      margin-bottom: var(--s4);
+      box-shadow: 0 2px 20px rgba(0,0,0,.07);
+    }
+    .balance-eyebrow {
+      font-size: 11px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 1px;
+      color: var(--tx-light); margin-bottom: var(--s1);
+    }
+    .balance-amount {
+      font-size: 58px; font-weight: 900;
+      letter-spacing: -3px; line-height: 1;
+      margin-bottom: var(--s2);
+      font-variant-numeric: tabular-nums;
+    }
+    .balance-amount.is-bumping { animation: bump .42s cubic-bezier(.34,1.56,.64,1); }
+    .balance-disclaimer {
+      font-size: 11px; color: var(--tx-light);
+      line-height: 1.5; margin-bottom: var(--s5);
+    }
+
+    /* Barre de progression missions */
+    .prog-track {
+      height: 8px; background: rgba(0,0,0,.06);
+      border-radius: var(--r-f); overflow: hidden;
+    }
+    .prog-fill {
+      height: 100%; border-radius: var(--r-f);
+      background: linear-gradient(90deg, var(--lime-dk), var(--lime));
+      width: 0%;
+      transition: width 1.2s cubic-bezier(.34,1.56,.64,1);
+    }
+    .prog-labels {
+      display: flex; justify-content: space-between;
+      margin-top: var(--s1); font-size: 10px;
+      color: var(--tx-light); font-weight: 500;
+    }
+
+    /* ══════════════════════════════════════════════════════
+       07. CARDS ROW (Objectif + Épargne)
+       ══════════════════════════════════════════════════════ */
+    .cards-row {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: var(--s4); margin-bottom: var(--s4);
+    }
+    .info-card {
+      background: var(--bg-card); border-radius: var(--r-l);
+      padding: var(--s4); text-align: center;
+      box-shadow: 0 2px 12px rgba(0,0,0,.06);
+      display: flex; flex-direction: column;
+      align-items: center; gap: var(--s1);
+    }
+
+    /* Ring objectif */
+    .goal-ring-wrap { position: relative; width: 64px; height: 64px; margin-bottom: var(--s1); }
+    .goal-emoji-center {
+      position: absolute; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 26px; line-height: 1;
+    }
+    .goal-ring-svg { width: 64px; height: 64px; transform: rotate(-90deg); }
+    .ring-track { fill: none; stroke: rgba(0,0,0,.07); stroke-width: 5; }
+    .ring-fill  {
+      fill: none; stroke: var(--purple); stroke-width: 5;
+      stroke-linecap: round;
+      stroke-dasharray: 170;   /* 2π × 27 ≈ 169.6 */
+      stroke-dashoffset: 170;
+      transition: stroke-dashoffset 1.2s cubic-bezier(.34,1.56,.64,1);
+    }
+    .card-name    { font-size: 12px; font-weight: 700; line-height: 1.2; }
+    .card-subtext { font-size: 11px; color: var(--purple); font-weight: 600; }
+
+    /* Épargne */
+    .invest-big {
+      font-size: 22px; font-weight: 800;
+      color: var(--success); font-variant-numeric: tabular-nums;
+    }
+    .invest-icon { font-size: 30px; }
+    .invest-hint { font-size: 10px; color: var(--tx-light); line-height: 1.4; text-align: center; }
+
+    /* ══════════════════════════════════════════════════════
+       08. MISSIONS CAROUSEL + FLIP 3D
+       ══════════════════════════════════════════════════════ */
+    .section-heading {
+      font-size: 18px; font-weight: 800; letter-spacing: -.3px;
+      margin-bottom: var(--s4);
+    }
+    .missions-section { margin-bottom: var(--s4); }
+
+    .missions-track {
+      display: flex; gap: var(--s4);
+      overflow-x: auto; scroll-snap-type: x mandatory;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+      padding-right: var(--s5);   /* peek carte suivante */
+      padding-bottom: var(--s2); /* ombre visible */
+    }
+    .missions-track::-webkit-scrollbar { display: none; }
+
+    /* ~46vw → 2 cartes visibles + peek de la 3e */
+    .m-card {
+      flex: 0 0 calc(50vw - 28px);
+      min-width: 140px; max-width: 195px;
+      height: 220px;
+      scroll-snap-align: start;
+      perspective: 1000px;
+      -webkit-perspective: 1000px;
+    }
+
+    .m-card-inner {
+      position: relative; width: 100%; height: 100%;
+      transform-style: preserve-3d;
+      -webkit-transform-style: preserve-3d;
+      transition: transform .55s cubic-bezier(.4,0,.2,1);
+    }
+    .m-card.is-flipped .m-card-inner {
+      transform: rotateY(180deg);
+      -webkit-transform: rotateY(180deg);
+    }
+
+    .m-face {
+      position: absolute; inset: 0;
+      border-radius: var(--r-l);
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: var(--s4);
+      box-shadow: 0 4px 20px rgba(0,0,0,.09);
+    }
+
+    /* Recto */
+    .m-front {
+      background: var(--bg-card);
+      border-top: 4px solid var(--success);
+      text-align: center;
+    }
+    .m-front.is-pending  { border-top-color: var(--pending); }
+    .m-front.is-done     { border-top-color: var(--muted); opacity: .6; }
+
+    .m-emoji   { font-size: 38px; line-height: 1; margin-bottom: var(--s2); }
+    .m-title   { font-size: 13px; font-weight: 700; line-height: 1.25; margin-bottom: var(--s1); }
+    .m-reward  { font-size: 21px; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--success); }
+    .m-badge   { position: absolute; top: var(--s2); right: var(--s2); font-size: 15px; }
+
+    .m-chip {
+      margin-top: var(--s1);
+      font-size: 10px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .5px;
+      padding: 2px 8px; border-radius: var(--r-f);
+    }
+    .m-chip.available { background: rgba(34,197,94,.12); color: var(--success); }
+    .m-chip.pending   { background: rgba(245,158,11,.12); color: var(--pending); }
+    .m-chip.completed { background: rgba(148,163,184,.12); color: var(--muted); }
+
+    /* Verso */
+    .m-back {
+      background: var(--purple);
+      transform: rotateY(180deg);
+      -webkit-transform: rotateY(180deg);
+      align-items: flex-start; justify-content: flex-start;
+      text-align: left; gap: var(--s2);
+    }
+    .back-close-btn { align-self: flex-end; font-size: 18px; color: rgba(255,255,255,.6); }
+    .back-desc { font-size: 11.5px; color: rgba(255,255,255,.9); line-height: 1.5; flex: 1; }
+    .back-cta {
+      width: 100%; padding: var(--s2) var(--s3);
+      background: rgba(255,255,255,.2); color: white;
+      font-size: 13px; font-weight: 700; border-radius: var(--s3);
+      transition: background .15s;
+    }
+    .back-cta:active  { background: rgba(255,255,255,.35); }
+    .back-cta.is-locked { opacity: .4; pointer-events: none; }
+
+    /* ══════════════════════════════════════════════════════
+       09. BOTTOM SHEET — Historique
+       ══════════════════════════════════════════════════════ */
+    .bottom-sheet {
+      position: fixed; left: 0; right: 0; bottom: 0;
+      height: 65vh; background: var(--bg-card);
+      border-radius: var(--r-xl) var(--r-xl) 0 0;
+      box-shadow: 0 -6px 40px rgba(0,0,0,.18);
+      z-index: 50;
+      transform: translateY(100%);
+      transition: transform .36s cubic-bezier(.32,.72,0,1);
+      display: flex; flex-direction: column;
+      padding-bottom: max(var(--s4), var(--sab));
+    }
+    .bottom-sheet.is-open { transform: translateY(0); }
+
+    .sheet-handle {
+      width: 36px; height: 4px;
+      background: rgba(0,0,0,.10); border-radius: var(--r-f);
+      margin: var(--s4) auto var(--s2); flex-shrink: 0;
+    }
+    .sheet-bar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 var(--s4) var(--s4); flex-shrink: 0;
+    }
+    .sheet-title    { font-size: 18px; font-weight: 800; }
+    .sheet-close-btn {
+      width: 30px; height: 30px; border-radius: var(--r-f);
+      background: rgba(0,0,0,.06); font-size: 13px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .sheet-scroll {
+      flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch;
+      padding: 0 var(--s4) var(--s4);
+    }
+    .sheet-scroll::-webkit-scrollbar { display: none; }
+
+    .history-empty { text-align: center; color: var(--tx-light); font-size: 14px; padding: var(--s8) 0; }
+
+    .hist-item {
+      display: flex; align-items: center;
+      gap: var(--s4); padding: var(--s4) 0;
+      border-bottom: 1px solid rgba(0,0,0,.05);
+    }
+    .hist-item:last-child { border-bottom: none; }
+    .hist-icon {
+      width: 38px; height: 38px; border-radius: var(--r-f);
+      background: rgba(0,0,0,.04);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px; flex-shrink: 0;
+    }
+    .hist-label  { font-size: 13px; font-weight: 500; }
+    .hist-date   { font-size: 11px; color: var(--tx-light); }
+    .hist-amount { font-size: 14px; font-weight: 800; font-variant-numeric: tabular-nums; }
+    .hist-amount.pos { color: var(--success); }
+    .hist-amount.neg { color: var(--danger); }
+
+    /* ══════════════════════════════════════════════════════
+       10. OVERLAY BACKDROP
+       ══════════════════════════════════════════════════════ */
+    .overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.45); z-index: 40;
+      opacity: 0; pointer-events: none;
+      transition: opacity .3s ease;
+    }
+    .overlay.is-visible { opacity: 1; pointer-events: all; }
+
+    /* ══════════════════════════════════════════════════════
+       11. VUE PARENT
+       ══════════════════════════════════════════════════════ */
+    #view-parent { background: var(--bg-parent); color: var(--tx-on-dark); }
+
+    .parent-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: max(var(--s4), calc(var(--sat) + var(--s2))) var(--s4) var(--s2);
+      flex-shrink: 0;
+    }
+    .parent-title { font-size: 18px; font-weight: 800; }
+    .btn-logout {
+      padding: var(--s2) var(--s4);
+      background: rgba(255,255,255,.08); color: var(--tx-on-dark);
+      border-radius: var(--r-f); font-size: 13px; font-weight: 600;
+      transition: background .15s;
+    }
+    .btn-logout:active { background: rgba(255,255,255,.15); }
+
+    .parent-scroll {
+      flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch;
+      padding: var(--s2) var(--s4) max(var(--s8), calc(var(--sab) + var(--s6)));
+    }
+    .parent-scroll::-webkit-scrollbar { display: none; }
+
+    /* ══════════════════════════════════════════════════════
+       12. CARTES PARENT
+       ══════════════════════════════════════════════════════ */
+    .p-card {
+      background: var(--bg-p-card);
+      border-radius: var(--r-l); padding: var(--s6);
+      margin-bottom: var(--s4);
+    }
+    .p-card-title {
+      font-size: 11px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .9px;
+      color: rgba(255,255,255,.3); margin-bottom: var(--s4);
+    }
+
+    /* Saisie solde */
+    .bal-row { display: flex; gap: var(--s2); }
+    .bal-input {
+      flex: 1;
+      background: rgba(255,255,255,.06);
+      border: 1.5px solid rgba(255,255,255,.10);
+      border-radius: var(--r-s); padding: var(--s4);
+      color: var(--tx-on-dark); font-size: 20px; font-weight: 700;
+      font-variant-numeric: tabular-nums; outline: none;
+      transition: border-color .2s;
+    }
+    .bal-input:focus { border-color: var(--lime); }
+    .btn-save-bal {
+      padding: var(--s4) var(--s5);
+      background: var(--lime); color: var(--tx-on-lime);
+      font-size: 14px; font-weight: 800; border-radius: var(--r-s);
+      white-space: nowrap; transition: transform .12s, opacity .12s;
+    }
+    .btn-save-bal:active { transform: scale(.93); opacity: .85; }
+
+    /* Missions en attente */
+    .p-mission-row {
+      display: flex; align-items: center;
+      gap: var(--s4); padding: var(--s4) 0;
+      border-bottom: 1px solid rgba(255,255,255,.05);
+    }
+    .p-mission-row:last-child { border-bottom: none; }
+    .pm-emoji { font-size: 26px; flex-shrink: 0; }
+    .pm-info  { flex: 1; }
+    .pm-name  { font-size: 14px; font-weight: 600; }
+    .pm-rew   { font-size: 12px; color: var(--lime); font-weight: 600; }
+    .pm-actions { display: flex; gap: var(--s2); }
+    .btn-ok {
+      background: var(--success); color: white;
+      padding: var(--s2) var(--s3); border-radius: var(--r-s);
+      font-size: 14px; font-weight: 700;
+      transition: transform .12s;
+    }
+    .btn-ok:active { transform: scale(.88); }
+    .btn-ko {
+      background: rgba(255,255,255,.07); color: var(--tx-on-dark);
+      padding: var(--s2) var(--s3); border-radius: var(--r-s); font-size: 14px;
+      transition: transform .12s;
+    }
+    .btn-ko:active { transform: scale(.88); }
+    .empty-state { text-align: center; color: rgba(255,255,255,.25); font-size: 14px; padding: var(--s6) 0; }
+
+    /* Paramètres */
+    .setting-row { margin-bottom: var(--s4); }
+    .setting-label { font-size: 12px; color: rgba(255,255,255,.35); margin-bottom: var(--s2); font-weight: 500; }
+    .setting-input {
+      width: 100%;
+      background: rgba(255,255,255,.06);
+      border: 1.5px solid rgba(255,255,255,.10);
+      border-radius: var(--r-s); padding: var(--s3) var(--s4);
+      color: var(--tx-on-dark); font-size: 15px; outline: none;
+      transition: border-color .2s;
+    }
+    .setting-input:focus { border-color: var(--lime); }
+    .btn-save-settings {
+      width: 100%; padding: var(--s4);
+      background: var(--lime); color: var(--tx-on-lime);
+      border-radius: var(--r-m); font-size: 15px; font-weight: 800;
+      transition: transform .12s, opacity .12s; margin-top: var(--s2);
+    }
+    .btn-save-settings:active { transform: scale(.97); opacity: .85; }
+
+    /* Reset mensuel */
+    .reset-hint { font-size: 12px; color: rgba(255,255,255,.3); line-height: 1.55; margin-bottom: var(--s4); }
+    .btn-reset {
+      width: 100%; padding: var(--s5);
+      background: rgba(239,68,68,.10); color: var(--danger);
+      border: 1.5px solid rgba(239,68,68,.22);
+      border-radius: var(--r-m); font-size: 15px; font-weight: 700;
+      transition: background .15s;
+    }
+    .btn-reset:active { background: rgba(239,68,68,.22); }
+
+    /* ══════════════════════════════════════════════════════
+       13. PIN MODAL
+       ══════════════════════════════════════════════════════ */
+    .pin-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.65);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      z-index: 200;
+      display: flex; align-items: flex-end; justify-content: center;
+      opacity: 0; pointer-events: none;
+      transition: opacity .25s ease;
+    }
+    .pin-overlay.is-open { opacity: 1; pointer-events: all; }
+
+    .pin-sheet {
+      background: var(--bg-card);
+      border-radius: var(--r-xl) var(--r-xl) 0 0;
+      padding: var(--s6) var(--s6) max(var(--s8), calc(var(--sab) + var(--s6)));
+      width: 100%;
+      transform: translateY(100%);
+      transition: transform .36s cubic-bezier(.32,.72,0,1);
+    }
+    .pin-overlay.is-open .pin-sheet { transform: translateY(0); }
+
+    .pin-title { font-size: 20px; font-weight: 800; text-align: center; margin-bottom: var(--s1); }
+    .pin-sub   { font-size: 13px; color: var(--tx-light); text-align: center; margin-bottom: var(--s6); }
+
+    .pin-dots { display: flex; justify-content: center; gap: var(--s5); margin-bottom: var(--s6); }
+    .pin-dot {
+      width: 14px; height: 14px; border-radius: 50%;
+      border: 2px solid var(--muted); background: transparent;
+      transition: all .15s cubic-bezier(.34,1.56,.64,1);
+    }
+    .pin-dot.is-filled { background: var(--purple); border-color: var(--purple); transform: scale(1.25); }
+
+    .pin-keypad {
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      gap: var(--s2); max-width: 280px; margin: 0 auto;
+    }
+    .pin-key {
+      height: 66px; border-radius: var(--r-m);
+      background: rgba(0,0,0,.05);
+      font-size: 26px; font-weight: 600; color: var(--tx-dark);
+      display: flex; align-items: center; justify-content: center;
+      transition: all .1s;
+    }
+    .pin-key:active    { background: rgba(0,0,0,.12); transform: scale(.91); }
+    .pin-key.is-ghost  { background: transparent; pointer-events: none; }
+    .pin-key.is-delete { font-size: 20px; }
+
+    .pin-error {
+      text-align: center; color: var(--danger);
+      font-size: 13px; font-weight: 600;
+      min-height: 20px; margin-top: var(--s4);
+    }
+    .btn-pin-cancel {
+      display: block; width: 100%;
+      padding: var(--s4); text-align: center;
+      color: var(--tx-mid); font-size: 15px; font-weight: 500;
+      margin-top: var(--s2);
+    }
+
+    /* ══════════════════════════════════════════════════════
+       14. CONFETTI CANVAS
+       ══════════════════════════════════════════════════════ */
+    #confetti-canvas { position: fixed; inset: 0; pointer-events: none; z-index: 999; }
+
+    /* ══════════════════════════════════════════════════════
+       15. ANIMATIONS
+       ══════════════════════════════════════════════════════ */
+    @keyframes bump {
+      0%  { transform: scale(1); }
+      40% { transform: scale(1.10); }
+      100%{ transform: scale(1); }
+    }
+    @keyframes shake {
+      0%,100%  { transform: translateX(0); }
+      20%,60%  { transform: translateX(-7px); }
+      40%,80%  { transform: translateX(7px); }
+    }
+    /* Logo SVG header */
+    .app-logo-svg { height:30px; width:auto; display:block; flex-shrink:0; }
+
+    .is-shaking { animation: shake .42s ease; }
+
+    /* ── Décimales solde enfant — police réduite ── */
+    .bal-dec { font-size: 30px; font-weight: 700; letter-spacing: -1px; }
+
+    /* ── Progress bar : label central earned ── */
+    #prog-earned { font-size: 11px; font-weight: 800; color: var(--success); }
+
+    /* ── Keyboard sheets (BalKeypad + NumKP) ── */
+    .k-sheet {
+      position: fixed; left: 0; right: 0; bottom: 0;
+      background: var(--bg-card); border-radius: var(--r-xl) var(--r-xl) 0 0;
+      padding: var(--s2) var(--s4) max(var(--s6), var(--sab));
+      box-shadow: 0 -4px 30px rgba(0,0,0,.15); z-index: 60;
+      transform: translateY(100%); transition: transform .36s cubic-bezier(.32,.72,0,1);
+    }
+    .k-sheet.is-open { transform: translateY(0); }
+    .k-label { text-align: center; font-size: 13px; font-weight: 600; color: var(--tx-mid); margin: var(--s2) 0 var(--s3); min-height: 20px; }
+    .k-display {
+      display: flex; align-items: baseline; justify-content: center;
+      padding: var(--s4) 0; border-bottom: 1.5px solid rgba(0,0,0,.07); margin-bottom: var(--s4);
+    }
+    .k-num  { font-size: 44px; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -1.5px; }
+    .k-unit { font-size: 24px; font-weight: 600; margin-left: var(--s1); }
+    .k-pad  { display: grid; grid-template-columns: repeat(3,1fr); gap: var(--s2); margin-bottom: var(--s4); }
+    .k-key  {
+      height: 54px; border-radius: var(--r-m); background: rgba(0,0,0,.05);
+      font-size: 22px; font-weight: 600; color: var(--tx-dark);
+      display: flex; align-items: center; justify-content: center; transition: all .1s;
+    }
+    .k-key:active  { background: rgba(0,0,0,.11); transform: scale(.91); }
+    .k-del  { font-size: 18px; }
+    .k-confirm {
+      width: 100%; padding: var(--s4); background: var(--lime); color: var(--tx-on-lime);
+      font-size: 15px; font-weight: 800; border-radius: var(--r-m); transition: transform .12s, opacity .12s;
+    }
+    .k-confirm:active { transform: scale(.97); opacity: .85; }
+
+    /* ── Parent : solde tap display ── */
+    .bal-tap-wrap {
+      display: flex; align-items: baseline; justify-content: center;
+      padding: var(--s4); border-radius: var(--r-m);
+      background: rgba(255,255,255,.06); cursor: pointer;
+      border: 1.5px solid rgba(255,255,255,.10); transition: border-color .2s; margin-bottom: var(--s2);
+    }
+    .bal-tap-wrap:active { border-color: var(--lime); }
+    #bal-disp-val { font-size: 38px; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--tx-on-dark); }
+    .bal-eur { font-size: 22px; font-weight: 600; color: var(--tx-on-dark); margin-left: var(--s1); }
+    .bal-tap-hint { font-size: 11px; color: rgba(255,255,255,.25); text-align: center; margin-bottom: var(--s2); }
+
+    /* ── Parent : champs numériques tap (argent de poche, prix objectif) ── */
+    .num-tap {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: var(--s3) var(--s4); background: rgba(255,255,255,.06);
+      border: 1.5px solid rgba(255,255,255,.10); border-radius: var(--r-s);
+      cursor: pointer; transition: border-color .2s;
+    }
+    .num-tap:active { border-color: var(--lime); }
+    .num-tap-val  { font-size: 15px; font-weight: 700; color: var(--tx-on-dark); font-variant-numeric: tabular-nums; }
+    .num-tap-hint { font-size: 11px; color: rgba(255,255,255,.25); }
+
+    /* ── Pool missions "À verser" ── */
+    .pool-row { display: flex; align-items: center; justify-content: space-between; gap: var(--s4); }
+    .pool-lbl { font-size: 11px; font-weight: 600; color: rgba(255,255,255,.35); text-transform: uppercase; letter-spacing: .5px; margin-bottom: var(--s1); }
+    .pool-amt { font-size: 28px; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--lime); }
+    .btn-reset-pool {
+      padding: var(--s2) var(--s4); background: rgba(239,68,68,.10); color: var(--danger);
+      border: 1px solid rgba(239,68,68,.22); border-radius: var(--r-m);
+      font-size: 13px; font-weight: 700; white-space: nowrap; transition: background .15s;
+    }
+    .btn-reset-pool:active   { background: rgba(239,68,68,.20); }
+    .btn-reset-pool:disabled { opacity: .35; pointer-events: none; }
+
+    /* ── Animation switch objectif ── */
+    @keyframes goalSlideIn {
+      from { opacity:0; transform:translateX(14px); }
+      to   { opacity:1; transform:translateX(0); }
+    }
+    .goal-anim { animation: goalSlideIn .22s ease forwards; }
+
+    /* ── Carte objectif : tappable quand 2 actifs ── */
+    #goal-card { cursor: default; transition: transform .12s; }
+    #goal-card.is-switchable { cursor: pointer; }
+    #goal-card.is-switchable:active { transform: scale(.96); }
+
+    /* ── Dots A / B ── */
+    .goal-dots  { display:flex; gap:6px; justify-content:center; margin-top:var(--s1); }
+    .goal-dot   { width:6px; height:6px; border-radius:50%; background:rgba(0,0,0,.15); transition:background .2s; }
+    .goal-dot.is-active { background:var(--purple); }
+
+    /* ── Lignes compactes objectifs (mode parent) ── */
+    .goal-row { display:flex; align-items:center; gap:var(--s2); margin-bottom:var(--s2); }
+    .inp-g-emoji {
+      width:40px; text-align:center; font-size:18px;
+      background:rgba(255,255,255,.06); border:1.5px solid rgba(255,255,255,.10);
+      border-radius:var(--r-s); padding:var(--s2) 0; color:var(--tx-on-dark); outline:none;
+    }
+    .inp-g-emoji:focus { border-color:var(--lime); }
+    .inp-g-name {
+      flex:1; min-width:0;
+      background:rgba(255,255,255,.06); border:1.5px solid rgba(255,255,255,.10);
+      border-radius:var(--r-s); padding:var(--s2) var(--s3); color:var(--tx-on-dark); font-size:13px; outline:none;
+    }
+    .inp-g-name:focus { border-color:var(--lime); }
+    .num-tap-sm { min-width:52px; height:34px; font-size:13px; justify-content:center; padding:0 var(--s2); }
+    .btn-g-save {
+      width:32px; height:32px; flex-shrink:0;
+      background:var(--lime); color:var(--tx-on-lime); border-radius:var(--r-s); font-size:14px;
+      transition:transform .12s;
+    }
+    .btn-g-save:active { transform:scale(.88); }
+  </style>
+</head>
+<body>
+<div id="app">
+
+  <canvas id="confetti-canvas"></canvas>
+  <div class="overlay" id="overlay"></div>
+
+  <!-- ═══════════════════════════════════════════
+       VUE ENFANT (Cassandre)
+       ═══════════════════════════════════════════ -->
+  <div id="view-child" class="view">
+    <header class="child-header">
+      <svg class="app-logo-svg" viewBox="0 0 5572 1612" xmlns="http://www.w3.org/2000/svg" aria-label="Argeo">
+        <g transform="translate(0,1612) scale(0.1,-0.1)" fill="#031d43" stroke="none">
+          <path d="M6716 16099 c-101 -15 -262 -57 -358 -94 -195 -75 -434 -220 -540 -327 -173 -175 -508 -789 -998 -1827 -95 -201 -719 -1458 -1387 -2795 -669 -1337 -1230 -2469 -1248 -2516 -192 -496 -33 -791 477 -889 222 -42 529 -57 858 -42 318 15 439 36 576 102 153 72 249 189 387 471 42 84 545 1098 1118 2253 573 1155 1084 2188 1134 2295 95 203 101 210 171 224 l30 7 79 -173 c325 -719 736 -1551 1762 -3568 576 -1130 588 -1155 650 -1250 109 -166 239 -276 385 -325 119 -39 284 -48 783 -42 463 5 538 12 671 62 86 32 193 104 244 163 87 101 149 271 150 410 0 154 -50 297 -219 627 -65 127 -609 1236 -1209 2465 -599 1229 -1184 2424 -1299 2655 -114 231 -264 546 -332 700 -152 342 -275 592 -348 705 -253 389 -656 648 -1106 709 -91 13 -345 12 -431 0z"/>
+          <path d="M19730 13309 c-708 -35 -1295 -181 -1855 -462 -154 -77 -245 -130 -430 -253 -254 -168 -473 -350 -667 -554 -701 -733 -1105 -1698 -1167 -2785 -17 -287 -34 -2369 -28 -3245 7 -856 16 -1142 41 -1270 61 -317 255 -566 547 -704 375 -177 815 -119 1106 147 142 131 251 330 305 562 l23 100 0 2135 c0 2211 1 2259 41 2480 24 136 70 300 114 415 290 740 970 1289 1760 1419 214 35 336 39 925 30 804 -13 1027 -7 1260 32 213 35 399 105 530 199 174 124 282 321 315 576 66 510 -174 937 -618 1099 -170 62 -234 71 -607 80 -419 11 -1372 10 -1595 -1z"/>
+          <path d="M39590 13309 c-392 -23 -844 -112 -1215 -239 -410 -141 -822 -350 -1166 -589 -658 -459 -1191 -1082 -1535 -1796 -225 -469 -367 -958 -431 -1493 -14 -117 -18 -225 -18 -522 1 -400 8 -500 61 -823 164 -1001 619 -1926 1245 -2532 103 -99 184 -168 544 -458 61 -49 173 -130 250 -181 591 -392 1228 -621 1985 -713 182 -22 820 -26 995 -5 619 72 1105 198 1630 424 500 216 1062 557 1217 740 98 116 152 218 189 353 30 107 33 392 6 499 -103 406 -420 687 -832 736 -280 33 -553 -51 -830 -256 -266 -196 -718 -392 -1105 -478 -234 -51 -326 -61 -610 -61 -285 0 -378 9 -607 61 -513 114 -1027 400 -1411 785 -319 319 -531 685 -532 920 l0 46 58 7 c274 31 1248 34 2937 10 1211 -17 2619 -14 2900 5 287 21 402 45 540 114 485 242 675 818 539 1632 -146 865 -658 1891 -1229 2460 -192 192 -495 430 -768 604 -708 453 -1470 702 -2291 750 -198 12 -302 12 -516 0z m508 -1990 c527 -57 1063 -299 1507 -679 193 -166 386 -383 509 -572 112 -173 203 -401 194 -490 -3 -31 -6 -33 -52 -40 -377 -53 -3788 -66 -4621 -18 -99 6 -188 13 -199 17 -43 12 0 195 84 363 150 299 504 689 840 927 384 271 819 444 1235 491 114 13 389 14 503 1z"/>
+          <path d="M28070 13303 c-720 -52 -1450 -262 -2065 -594 -1285 -695 -2158 -1989 -2349 -3484 -55 -430 -46 -940 24 -1375 183 -1125 774 -2153 1652 -2873 611 -500 1394 -836 2278 -977 447 -71 988 -78 1447 -20 392 50 811 160 1126 294 168 72 656 319 786 397 919 558 1681 1604 1991 2737 173 631 205 1367 89 2037 -137 785 -452 1482 -957 2115 -159 198 -501 540 -705 702 -759 606 -1662 963 -2621 1038 -117 9 -585 11 -696 3z m704 -2013 c614 -92 1196 -406 1619 -875 366 -406 588 -858 679 -1381 31 -176 33 -627 5 -799 -77 -468 -267 -894 -563 -1265 -88 -110 -315 -337 -424 -424 -403 -320 -849 -519 -1326 -590 -623 -94 -1258 29 -1784 344 -729 438 -1215 1172 -1326 2005 -24 178 -24 525 0 690 85 594 339 1093 767 1511 471 459 1082 740 1749 804 145 13 444 4 604 -20z"/>
+          <path d="M50560 13299 c-648 -56 -1233 -219 -1785 -498 -552 -279 -998 -636 -1367 -1094 -45 -56 -126 -153 -179 -214 -233 -271 -473 -688 -644 -1119 -107 -267 -205 -617 -259 -914 -87 -479 -100 -1053 -35 -1519 118 -848 545 -1757 1146 -2441 253 -288 476 -473 933 -772 720 -473 1356 -705 2135 -780 166 -15 677 -15 860 1 652 56 1189 196 1710 445 1405 672 2386 2047 2594 3636 160 1219 -159 2429 -905 3436 -656 886 -1597 1486 -2719 1733 -352 77 -589 102 -1020 106 -198 2 -407 -1 -465 -6z m785 -2003 c977 -146 1812 -817 2179 -1750 210 -533 228 -1170 49 -1731 -132 -412 -337 -755 -638 -1064 -423 -435 -925 -694 -1535 -792 -181 -29 -529 -37 -714 -15 -424 49 -839 198 -1181 423 -672 443 -1119 1156 -1221 1948 -23 177 -23 498 0 665 56 414 187 764 411 1100 115 172 198 274 345 420 461 461 1038 737 1695 810 114 12 491 4 610 -14z"/>
+          <path fill="#52a793" d="M842 6696 c-341 -65 -630 -275 -757 -550 -57 -123 -79 -229 -78 -386 1 -111 6 -152 26 -232 62 -238 246 -495 567 -795 1033 -965 1273 -1150 2110 -1631 1102 -634 2236 -988 3492 -1092 375 -31 961 -29 1353 5 1310 113 2548 514 3685 1193 161 96 463 296 610 404 150 110 1073 876 1216 1009 414 387 625 718 666 1045 33 263 -72 536 -291 754 -196 195 -420 290 -684 290 -200 0 -391 -58 -573 -171 -111 -70 -164 -122 -248 -243 -38 -55 -95 -129 -127 -165 -32 -36 -115 -132 -186 -213 -105 -120 -169 -181 -358 -339 -350 -293 -576 -456 -910 -656 -972 -583 -2024 -910 -3135 -973 -918 -52 -1887 115 -2800 482 -512 206 -888 403 -1325 694 -198 132 -221 149 -392 294 -48 42 -151 125 -228 185 -77 61 -178 146 -224 190 -84 80 -314 359 -420 510 -143 204 -297 316 -517 375 -103 28 -362 36 -472 16z"/>
+          <path d="M31945 3446 c-169 -39 -341 -137 -535 -306 -249 -217 -417 -341 -660 -488 -565 -342 -1220 -558 -1931 -639 -216 -24 -742 -24 -957 0 -558 63 -1043 205 -1502 438 -195 99 -311 170 -556 339 -312 215 -399 279 -489 360 -162 145 -309 230 -480 276 -109 29 -361 27 -475 -4 -170 -47 -314 -128 -444 -252 -130 -124 -211 -256 -262 -427 -38 -129 -45 -322 -15 -448 56 -233 192 -414 541 -720 205 -180 379 -304 740 -530 267 -167 658 -374 935 -495 1712 -747 3491 -728 5166 54 475 222 1087 612 1504 957 130 108 347 325 413 414 71 94 129 214 148 305 23 103 22 301 0 405 -67 304 -287 573 -567 691 -137 58 -219 75 -374 80 -96 2 -159 -1 -200 -10z"/>
+        </g>
+      </svg>
+      <button class="btn-icon" id="btn-to-parent" aria-label="Accès parent">🔒</button>
+    </header>
+
+    <main class="child-scroll">
+
+      <!-- Balance + barre de progression -->
+      <section class="balance-block">
+        <p class="balance-eyebrow" id="balance-eyebrow">Mon Butin 💰</p>
+        <p class="balance-amount" id="balance-display">
+          <span id="bal-int">0</span><span class="bal-dec" id="bal-dec">,00&thinsp;€</span>
+        </p>
+        <p class="balance-disclaimer" id="balance-disclaimer">Ce solde ne reflète pas ton argent réel.</p>
+        <div class="prog-track">
+          <div class="prog-fill" id="prog-fill"></div>
+        </div>
+        <div class="prog-labels">
+          <span>0&thinsp;€</span>
+          <span id="prog-earned">+0&thinsp;€</span>
+          <span id="prog-max">+0&thinsp;€</span>
+        </div>
+      </section>
+
+      <!-- Objectif tirelire + Épargne passive -->
+      <div class="cards-row">
+        <div class="info-card" id="goal-card">
+          <!-- État vide -->
+          <p id="no-goal-msg" style="font-size:12px;color:var(--tx-light);line-height:1.4;padding:var(--s2) 0">
+            Pas d'objectif en cours
+          </p>
+          <!-- Contenu objectif (masqué si vide) -->
+          <div id="goal-content" style="display:none;flex-direction:column;align-items:center;gap:4px;width:100%">
+            <div class="goal-ring-wrap">
+              <span class="goal-emoji-center" id="goal-emoji">🎮</span>
+              <svg class="goal-ring-svg" viewBox="0 0 60 60">
+                <circle class="ring-track" cx="30" cy="30" r="27"/>
+                <circle class="ring-fill"  cx="30" cy="30" r="27" id="ring-fill"/>
+              </svg>
+            </div>
+            <p class="card-name"    id="goal-name">Mon objectif</p>
+            <p class="card-subtext" id="goal-target">40&thinsp;€</p>
+            <!-- Dots A/B (visibles seulement si 2 objectifs actifs) -->
+            <div class="goal-dots" id="goal-dots" style="display:none">
+              <span class="goal-dot is-active" id="dot-a"></span>
+              <span class="goal-dot"           id="dot-b"></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="info-card">
+          <span class="invest-icon">📈</span>
+          <p class="card-name" style="color:var(--tx-light);font-size:11px;text-transform:uppercase;letter-spacing:.5px">Épargne</p>
+          <p class="invest-big" id="invest-amount">+0,00 €</p>
+          <p class="invest-hint">bonus au reset<br>si tu gardes tout !</p>
+        </div>
+      </div>
+
+      <!-- Carrousel de missions -->
+      <section class="missions-section">
+        <h2 class="section-heading">Mes Missions ⚡</h2>
+        <div class="missions-track" id="missions-track"><!-- injecté par JS --></div>
+      </section>
+
+      <!-- Bouton historique -->
+      <div style="display:flex;justify-content:center;margin-bottom:var(--s4)">
+        <button id="btn-history"
+          style="background:rgba(0,0,0,.07);color:var(--tx-mid);font-size:14px;font-weight:600;padding:var(--s4) var(--s8);border-radius:var(--r-f)">
+          📜 Mon Historique
+        </button>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       VUE PARENT
+       ═══════════════════════════════════════════ -->
+  <div id="view-parent" class="view is-hidden">
+    <header class="parent-header">
+      <span class="parent-title">🔒 Mode Parent</span>
+      <button class="btn-logout" id="btn-logout">Quitter</button>
+    </header>
+
+    <div class="parent-scroll">
+
+      <!-- Solde -->
+      <div class="p-card">
+        <p class="p-card-title" id="parent-solde-title">💰 Solde de l'enfant</p>
+        <div class="bal-tap-wrap" id="bal-display-p">
+          <span id="bal-disp-val">0,00</span><span class="bal-eur">&thinsp;€</span>
+        </div>
+        <p class="bal-tap-hint">Appuyer pour modifier</p>
+      </div>
+
+      <!-- Missions à verser -->
+      <div class="p-card">
+        <p class="p-card-title">💸 Missions à verser</p>
+        <div class="pool-row">
+          <p class="pool-amt" id="pool-amt">0&thinsp;€</p>
+          <button class="btn-reset-pool" id="btn-reset-pool" disabled>Remettre à zéro</button>
+        </div>
+      </div>
+
+      <!-- Missions en attente -->
+      <div class="p-card">
+        <p class="p-card-title">⏳ En attente de validation</p>
+        <div id="pending-list"><p class="empty-state">Aucune mission en attente 🎉</p></div>
+      </div>
+
+      <!-- Toutes les missions -->
+      <div class="p-card">
+        <p class="p-card-title">📋 Toutes les missions</p>
+        <div id="all-missions-list"><!-- JS --></div>
+      </div>
+
+      <!-- Objectifs -->
+      <div class="p-card">
+        <p class="p-card-title">🎯 Objectifs</p>
+        <!-- Objectif A -->
+        <div class="goal-row">
+          <input type="text"   class="inp-g-emoji" id="sg-a-emoji" placeholder="🎮" maxlength="2">
+          <input type="text"   class="inp-g-name"  id="sg-a-name"  placeholder="Nom" maxlength="22">
+          <div class="num-tap num-tap-sm" id="sg-a-price-tap">
+            <span class="num-tap-val" id="sg-a-price-val">—</span>
+          </div>
+          <button class="btn-g-save" data-g="A">✓</button>
+        </div>
+        <!-- Objectif B -->
+        <div class="goal-row">
+          <input type="text"   class="inp-g-emoji" id="sg-b-emoji" placeholder="🎯" maxlength="2">
+          <input type="text"   class="inp-g-name"  id="sg-b-name"  placeholder="Nom (optionnel)" maxlength="22">
+          <div class="num-tap num-tap-sm" id="sg-b-price-tap">
+            <span class="num-tap-val" id="sg-b-price-val">—</span>
+          </div>
+          <button class="btn-g-save" data-g="B">✓</button>
+        </div>
+      </div>
+
+      <!-- Paramètres -->
+      <div class="p-card">
+        <p class="p-card-title">⚙️ Paramètres</p>
+        <div class="setting-row">
+          <p class="setting-label">Prénom de l'enfant</p>
+          <input type="text" class="setting-input" id="s-child-name" placeholder="Cassandre">
+        </div>
+        <div class="setting-row">
+          <p class="setting-label" id="allowance-label">Argent de poche mensuel indicatif de l'enfant</p>
+          <div class="num-tap" id="s-allowance-tap">
+            <span class="num-tap-val" id="s-allowance-val">20&thinsp;€</span>
+            <span class="num-tap-hint">Appuyer pour modifier</span>
+          </div>
+        </div>
+        <div class="setting-row">
+          <p class="setting-label">Nouveau code PIN (4 chiffres)</p>
+          <input type="password" inputmode="numeric" maxlength="4" class="setting-input" id="s-pin" placeholder="••••">
+        </div>
+        <button class="btn-save-settings" id="btn-save-settings">Enregistrer</button>
+      </div>
+
+      <!-- Reset mensuel -->
+      <div class="p-card">
+        <p class="p-card-title">🔄 Cycle Mensuel</p>
+        <p class="reset-hint">
+          Verse l'argent de poche fixe, remet toutes les missions à "Disponible"
+          et efface l'historique. Action irréversible.
+        </p>
+        <button class="btn-reset" id="btn-monthly-reset">🔄 Lancer le Reset Mensuel</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       BOTTOM SHEET — Historique
+       ═══════════════════════════════════════════ -->
+  <div class="bottom-sheet" id="sheet-history">
+    <div class="sheet-handle"></div>
+    <div class="sheet-bar">
+      <p class="sheet-title">📜 Historique</p>
+      <button class="sheet-close-btn" id="btn-close-history">✕</button>
+    </div>
+    <div class="sheet-scroll" id="history-content"><!-- JS --></div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       KEYBOARD SHEET — Solde (BalKeypad)
+       ═══════════════════════════════════════════ -->
+  <div class="k-sheet" id="bal-sheet">
+    <div class="sheet-handle"></div>
+    <p class="k-label">Nouveau solde</p>
+    <div class="k-display">
+      <span class="k-num" id="bal-k-num">0</span>
+      <span class="k-unit">&thinsp;€</span>
+    </div>
+    <div class="k-pad">
+      <button class="k-key" data-bk="1">1</button>
+      <button class="k-key" data-bk="2">2</button>
+      <button class="k-key" data-bk="3">3</button>
+      <button class="k-key" data-bk="4">4</button>
+      <button class="k-key" data-bk="5">5</button>
+      <button class="k-key" data-bk="6">6</button>
+      <button class="k-key" data-bk="7">7</button>
+      <button class="k-key" data-bk="8">8</button>
+      <button class="k-key" data-bk="9">9</button>
+      <button class="k-key" data-bk=",">,</button>
+      <button class="k-key" data-bk="0">0</button>
+      <button class="k-key k-del" id="bal-k-del">⌫</button>
+    </div>
+    <button class="k-confirm" id="bal-k-confirm">✓ Enregistrer le solde</button>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       KEYBOARD SHEET — Générique (NumKP)
+       ═══════════════════════════════════════════ -->
+  <div class="k-sheet" id="nkp-sheet">
+    <div class="sheet-handle"></div>
+    <p class="k-label" id="nkp-label">Valeur</p>
+    <div class="k-display">
+      <span class="k-num" id="nkp-num">0</span>
+      <span class="k-unit">&thinsp;€</span>
+    </div>
+    <div class="k-pad">
+      <button class="k-key" data-nk="1">1</button>
+      <button class="k-key" data-nk="2">2</button>
+      <button class="k-key" data-nk="3">3</button>
+      <button class="k-key" data-nk="4">4</button>
+      <button class="k-key" data-nk="5">5</button>
+      <button class="k-key" data-nk="6">6</button>
+      <button class="k-key" data-nk="7">7</button>
+      <button class="k-key" data-nk="8">8</button>
+      <button class="k-key" data-nk="9">9</button>
+      <button class="k-key" data-nk=",">,</button>
+      <button class="k-key" data-nk="0">0</button>
+      <button class="k-key k-del" id="nkp-del">⌫</button>
+    </div>
+    <button class="k-confirm" id="nkp-confirm">✓ Valider</button>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       PIN MODAL
+       ═══════════════════════════════════════════ -->
+  <div class="pin-overlay" id="pin-overlay">
+    <div class="pin-sheet">
+      <p class="pin-title">🔐 Accès Parent</p>
+      <p class="pin-sub">Entre ton code PIN à 4 chiffres</p>
+      <div class="pin-dots">
+        <div class="pin-dot" id="pd-0"></div>
+        <div class="pin-dot" id="pd-1"></div>
+        <div class="pin-dot" id="pd-2"></div>
+        <div class="pin-dot" id="pd-3"></div>
+      </div>
+      <div class="pin-keypad">
+        <button class="pin-key" data-k="1">1</button>
+        <button class="pin-key" data-k="2">2</button>
+        <button class="pin-key" data-k="3">3</button>
+        <button class="pin-key" data-k="4">4</button>
+        <button class="pin-key" data-k="5">5</button>
+        <button class="pin-key" data-k="6">6</button>
+        <button class="pin-key" data-k="7">7</button>
+        <button class="pin-key" data-k="8">8</button>
+        <button class="pin-key" data-k="9">9</button>
+        <button class="pin-key is-ghost"></button>
+        <button class="pin-key" data-k="0">0</button>
+        <button class="pin-key is-delete" id="pin-del">⌫</button>
+      </div>
+      <p class="pin-error" id="pin-error"></p>
+      <button class="btn-pin-cancel" id="pin-cancel">Annuler</button>
+    </div>
+  </div>
+
+</div><!-- /#app -->
+
+<script>
+'use strict';
+
+/* ════════════════════════════════════════════════════════
+   01. STORAGE ENGINE
+   Namespace versionné argeo_v1_. Séparation CRUD / schéma.
+   ════════════════════════════════════════════════════════ */
+const StorageEngine = (() => {
+  const NS = 'argeo_v1_';
+
+  const SCHEMA = {
+    user: {
+      childName:      'Cassandre',
+      currentBalance: 0,
+      baseAllowance:  20,
+      gains_missions: 0,
+      epargneValidated: false,
+      goalA: { emoji:'🎮', name:'Mon objectif', price:40 },
+      goalB: { emoji:'',   name:'',             price:0  },
+      activeGoal:     'A',
+      pin:            '1234',
+      lastUpdatedAt:  null,
+    },
+    missions: [
+      { id:'m1', emoji:'🍳', title:'Cuisiner un repas',
+        desc:'Préparer une recette simple de A à Z et ranger le plan de travail.',
+        reward:2.00, status:'available', streak:0, isDaily:false },
+      { id:'m2', emoji:'📚', title:'Lire & Résumer',
+        desc:'Lire un chapitre entier et le raconter oralement à tes parents.',
+        reward:1.50, status:'available', streak:0, isDaily:false },
+      { id:'m3', emoji:'🏆', title:'Bulletin scolaire',
+        desc:'Bonus exceptionnel pour d\'excellentes appréciations de tes enseignants.',
+        reward:3.00, status:'available', streak:0, isDaily:false },
+      { id:'m4', emoji:'🛏️', title:'Chambre impeccable',
+        desc:'Lit fait, jouets rangés dans les bacs, sol dégagé pour l\'aspirateur.',
+        reward:1.50, status:'available', streak:0, isDaily:true },
+      { id:'m5', emoji:'⏰', title:'Zéro-rush le matin',
+        desc:'Être prête à l\'heure pile, sans aucun rappel de tes parents.',
+        reward:0.50, status:'available', streak:0, isDaily:true },
+      { id:'m6', emoji:'📱', title:'Temps d\'écran OK',
+        desc:'Éteindre les écrans immédiatement quand la minuterie convenue sonne.',
+        reward:0.50, status:'available', streak:0, isDaily:true },
+      { id:'m7', emoji:'🎬', title:'Podcast & Documentaire',
+        desc:'Regarder un contenu éducatif et citer 3 choses apprises.',
+        reward:1.00, status:'available', streak:0, isDaily:false },
+      { id:'m8', emoji:'📖', title:'Mots compliqués',
+        desc:'Apprendre la définition de 3 nouveaux mots et les utiliser dans une phrase.',
+        reward:1.00, status:'available', streak:0, isDaily:false },
+    ],
+    history: [],
+  };
+
+  const _read  = k => { try { const v = localStorage.getItem(NS+k); return v ? JSON.parse(v) : null; } catch { return null; } };
+  const _write = (k, v) => { try { localStorage.setItem(NS+k, JSON.stringify(v)); } catch(e) { console.warn('[Store]', e); } };
+  const _clone = o => JSON.parse(JSON.stringify(o));
+
+  return {
+    init() {
+      /* Migration v1 : goalEmoji/goalName/goalPrice → goalA/goalB/activeGoal */
+      const u = _read('user');
+      if (u && u.goalEmoji !== undefined && !u.goalA) {
+        u.goalA = { emoji: u.goalEmoji || '🎮', name: u.goalName || '', price: u.goalPrice || 0 };
+        u.goalB = { emoji: '', name: '', price: 0 };
+        u.activeGoal = 'A';
+        delete u.goalEmoji; delete u.goalName; delete u.goalPrice;
+        _write('user', u);
+      }
+      /* Migration missions[] → mission_states{} */
+      if (_read('missions') && !_read('mission_states')) {
+        const states = {};
+        (_read('missions') || []).forEach(m => {
+          states[m.id] = { status: m.status ?? 'available', streak: m.streak ?? 0 };
+        });
+        _write('mission_states', states);
+      }
+      if (!_read('user'))           _write('user',           _clone(SCHEMA.user));
+      if (!_read('mission_states')) _write('mission_states', {});
+      if (!_read('history'))        _write('history',        []);
+    },
+
+    /* ─── User ─── */
+    getUser()      { return { ...SCHEMA.user, ..._read('user') }; },
+    setUser(patch) { _write('user', { ...this.getUser(), ...patch }); },
+
+    /* ─── Mission States
+         Les définitions (emoji, titre, desc, reward) vivent dans missions.json.
+         Seuls les états (status, streak) sont persistés ici.               ─── */
+    getMissionStates() { return _read('mission_states') ?? {}; },
+    setMissionState(id, patch) {
+      const s = this.getMissionStates();
+      s[id] = { ...{ status:'available', streak:0 }, ...(s[id] || {}), ...patch };
+      _write('mission_states', s);
+    },
+    resetMissionStates() {
+      const s = this.getMissionStates();
+      Object.keys(s).forEach(id => { s[id] = { ...s[id], status:'available' }; });
+      _write('mission_states', s);
+    },
+
+    /* ─── History ─── */
+    getHistory()       { return _read('history') ?? []; },
+    pushHistory(entry) {
+      const h = this.getHistory();
+      h.unshift({ id:`h${Date.now()}`, ts: new Date().toISOString(), ...entry });
+      _write('history', h.slice(0, 200));
+    },
+    clearHistory()     { _write('history', []); },
+  };
+})();
+
+
+/* ════════════════════════════════════════════════════════
+   02. MISSIONS LOADER
+   Source : missions.json (Network-First via SW).
+   Fallback embarqué — miroir exact du JSON — utilisé si le
+   fetch échoue : file://, offline, déploiement incomplet.
+   Les états (status, streak) restent dans localStorage.
+   ════════════════════════════════════════════════════════ */
+const MissionsLoader = (() => {
+
+  const DEFAULT = [
+    { id:'m1', emoji:'🍳', title:'Cuisiner un repas',
+      desc:'Préparer une recette simple de A à Z et ranger le plan de travail.',
+      reward:2.00, isDaily:false },
+    { id:'m2', emoji:'📚', title:'Lire & Résumer',
+      desc:'Lire un chapitre entier et le raconter oralement à ton papa.',
+      reward:1.50, isDaily:false },
+    { id:'m3', emoji:'🏆', title:'Bulletin scolaire',
+      desc:'Bonus exceptionnel pour d\'excellentes appréciations de tes enseignants.',
+      reward:3.00, isDaily:false },
+    { id:'m4', emoji:'🛏️', title:'Chambre impeccable',
+      desc:'Lit fait, bureau en ordre, sol dégagé pour l\'aspirateur.',
+      reward:1.50, isDaily:true },
+    { id:'m5', emoji:'⏰', title:'Zéro-rush le matin',
+      desc:'Être prête à l\'heure pile, sans aucun rappel de ton papa.',
+      reward:0.50, isDaily:true },
+    { id:'m6', emoji:'📱', title:'Temps d\'écran OK',
+      desc:'Éteindre les écrans immédiatement quand la minuterie convenue sonne.',
+      reward:0.50, isDaily:true },
+    { id:'m7', emoji:'🎬', title:'Podcast & Documentaire',
+      desc:'Regarder un contenu éducatif et citer 3 choses apprises.',
+      reward:1.00, isDaily:false },
+    { id:'m8', emoji:'📖', title:'Mots compliqués',
+      desc:'Apprendre la définition de 3 nouveaux mots et les utiliser dans une phrase.',
+      reward:1.00, isDaily:false },
+  ];
+
+  let _defs = [];
+
+  const _merge = defs => {
+    const states = StorageEngine.getMissionStates();
+    return defs.map(d => ({
+      ...d,
+      status: states[d.id]?.status ?? 'available',
+      streak: states[d.id]?.streak ?? 0,
+    }));
+  };
+
+  return {
+    async load() {
+      try {
+        const r = await fetch('./missions.json');
+        _defs = r.ok ? await r.json() : [...DEFAULT];
+      } catch {
+        _defs = [...DEFAULT]; /* file://, réseau ko → fallback transparent */
+      }
+      return this.get();
+    },
+    get()        { return _merge(_defs); },
+    updateState(id, patch) { StorageEngine.setMissionState(id, patch); },
+  };
+})();
+
+
+/* ════════════════════════════════════════════════════════
+   03. SOUND ENGINE
+   Web Audio API. Contexte créé lazily au 1er geste (iOS).
+   ════════════════════════════════════════════════════════ */
+const SoundEngine = (() => {
+  let ctx      = null;
+  let unlocked = false;
+
+  const _ctx = () => {
+    if (!ctx) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return null;
+      ctx = new AC();
+    }
+    if (ctx.state === 'suspended') ctx.resume();
+    return ctx;
+  };
+
+  const _tone = (freq, dur, type = 'sine', gain = 0.22, delay = 0) => {
+    const c = _ctx(); if (!c) return;
+    try {
+      const osc = c.createOscillator();
+      const g   = c.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, c.currentTime + delay);
+      g.gain.setValueAtTime(gain, c.currentTime + delay);
+      g.gain.exponentialRampToValueAtTime(0.001, c.currentTime + delay + dur);
+      osc.connect(g); g.connect(c.destination);
+      osc.start(c.currentTime + delay);
+      osc.stop(c.currentTime + delay + dur + 0.01);
+    } catch { /* silent fail */ }
+  };
+
+  return {
+    unlock() { if (unlocked) return; unlocked = true; _ctx(); },
+    /* Pièce style Mario — 2 notes enchaînées */
+    coin()  { _tone(988, 0.08, 'square', 0.12, 0); _tone(1319, 0.18, 'square', 0.09, 0.08); },
+    /* Clic léger — passage en "en attente" */
+    tap()   { _tone(660, 0.04, 'sine', 0.08); },
+    /* Buzz d'erreur PIN */
+    error() { _tone(220, 0.08, 'sawtooth', 0.10, 0); _tone(180, 0.12, 'sawtooth', 0.10, 0.08); },
+  };
+})();
+
+
+/* ════════════════════════════════════════════════════════
+   03. CONFETTI ENGINE
+   Canvas RAF. Burst de particules rectangulaires colorées.
+   ════════════════════════════════════════════════════════ */
+const ConfettiEngine = (() => {
+  const canvas = document.getElementById('confetti-canvas');
+  const ctx    = canvas.getContext('2d');
+  const COLORS = ['#C2F552','#A259F7','#F97316','#22C55E','#F59E0B','#EC4899','#38BDF8'];
+  let   particles = [], raf = null;
+
+  const _resize = () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; };
+  window.addEventListener('resize', _resize, { passive:true });
+  _resize();
+
+  const _loop = () => {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    particles = particles.filter(p => p.a > 0.02);
+    for (const p of particles) {
+      p.x += p.vx; p.y += p.vy;
+      p.vy += 0.38; p.vx *= 0.99;
+      p.rot += p.rs; p.a -= 0.013;
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, p.a);
+      ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+      ctx.fillStyle = p.c;
+      ctx.fillRect(-p.w/2, -p.h/2, p.w, p.h);
+      ctx.restore();
+    }
+    raf = particles.length ? requestAnimationFrame(_loop) : null;
+  };
+
+  return {
+    burst(ox = null, oy = null) {
+      const cx = ox ?? window.innerWidth  / 2;
+      const cy = oy ?? window.innerHeight * 0.32;
+      for (let i = 0; i < 110; i++) {
+        const a = Math.random() * Math.PI * 2;
+        const s = Math.random() * 12 + 2;
+        particles.push({
+          x:cx, y:cy,
+          vx: Math.cos(a)*s, vy: Math.sin(a)*s - 5,
+          c: COLORS[~~(Math.random()*COLORS.length)],
+          w: Math.random()*9+4, h: Math.random()*5+3,
+          rot: Math.random()*Math.PI*2, rs: (Math.random()-.5)*.28,
+          a: 1,
+        });
+      }
+      if (!raf) raf = requestAnimationFrame(_loop);
+    },
+  };
+})();
+
+
+/* ════════════════════════════════════════════════════════
+   04. HELPERS DE FORMATAGE
+   ════════════════════════════════════════════════════════ */
+const Fmt = {
+  /* Espace fine insécable (U+202F) avant € — norme française */
+  euro(n)      { return Math.abs(n).toFixed(2).replace('.', ',') + '\u202f€'; },
+  /* Élide les décimales quand elles sont nulles (ex: 2 € au lieu de 2,00 €) */
+  euroClean(n) {
+    const abs = Math.abs(n);
+    return (abs % 1 === 0 ? String(Math.round(abs)) : abs.toFixed(2).replace('.', ',')) + '\u202f€';
+  },
+  date(iso) {
+    return new Date(iso).toLocaleDateString('fr-FR', {
+      day:'numeric', month:'short', hour:'2-digit', minute:'2-digit',
+    });
+  },
+};
+
+
+/* ════════════════════════════════════════════════════════
+   05. BAL KEYPAD — Sheet dédiée au solde parent
+   ════════════════════════════════════════════════════════ */
+const BalKeypad = (() => {
+  let raw = '', dirty = false;
+  const _kNum  = () => document.getElementById('bal-k-num');
+  const _disp  = () => document.getElementById('bal-disp-val');
+  const _sync  = () => { _kNum().textContent = raw || '0'; };
+  const _total = () => {
+    const u = StorageEngine.getUser();
+    return Math.round((u.currentBalance + u.gains_missions) * 100) / 100;
+  };
+
+  const _refreshDisp = () => {
+    const v = raw ? parseFloat(raw.replace(',', '.')) || 0 : _total();
+    const [ip, dp] = v.toFixed(2).split('.');
+    _disp().textContent = ip + ',' + dp;
+  };
+
+  function open() {
+    raw = _total().toFixed(2).replace('.', ',');
+    dirty = false; _sync();
+    document.getElementById('bal-sheet').classList.add('is-open');
+    document.getElementById('overlay').classList.add('is-visible');
+  }
+  function close() {
+    document.getElementById('bal-sheet').classList.remove('is-open');
+    document.getElementById('overlay').classList.remove('is-visible');
+  }
+
+  function init() {
+    document.getElementById('bal-display-p').addEventListener('click', open);
+    document.querySelectorAll('.k-key[data-bk]').forEach(k => {
+      k.addEventListener('click', () => {
+        SoundEngine.tap();
+        const v = k.dataset.bk;
+        if (!dirty) { raw = ''; dirty = true; }
+        if (v === ',') { if (raw.includes(',')) return; raw = raw || '0'; raw += ','; }
+        else { const ci = raw.indexOf(','); if (ci >= 0 && raw.length - ci >= 3) return; raw = raw === '0' ? v : raw + v; }
+        _sync();
+      });
+    });
+    document.getElementById('bal-k-del').addEventListener('click', () => {
+      if (!dirty) { raw = ''; dirty = true; } raw = raw.slice(0, -1); _sync();
+    });
+    document.getElementById('bal-k-confirm').addEventListener('click', () => {
+      const val  = parseFloat(raw.replace(',', '.')) || 0;
+      const old  = _total();
+      const diff = Math.round((val - old) * 100) / 100;
+      StorageEngine.setUser({ currentBalance: val, gains_missions: 0, lastUpdatedAt: new Date().toISOString() });
+      if (diff !== 0) StorageEngine.pushHistory({ emoji:'✏️', label:'Ajustement manuel du solde', amount:diff, type:'adjustment' });
+      _refreshDisp(); SoundEngine.coin(); ChildUI.renderAll(); close();
+    });
+  }
+
+  return { init, open, close, refreshDisp: _refreshDisp };
+})();
+
+
+/* ════════════════════════════════════════════════════════
+   06. NUM KEYPAD — Sheet générique (argent de poche, prix objectif)
+   ════════════════════════════════════════════════════════ */
+const NumKP = (() => {
+  let raw = '', dirty = false, _cb = null;
+  const _kNum = () => document.getElementById('nkp-num');
+  const _sync = () => { _kNum().textContent = raw || '0'; };
+  function _close() {
+    document.getElementById('nkp-sheet').classList.remove('is-open');
+    document.getElementById('overlay').classList.remove('is-visible');
+    _cb = null;
+  }
+
+  return {
+    open(initVal, label, cb) {
+      raw = (initVal || 0).toFixed(2).replace('.', ',');
+      dirty = false; _cb = cb;
+      document.getElementById('nkp-label').textContent = label;
+      _sync();
+      document.getElementById('nkp-sheet').classList.add('is-open');
+      document.getElementById('overlay').classList.add('is-visible');
+    },
+    close: _close,
+    init() {
+      document.querySelectorAll('.k-key[data-nk]').forEach(k => {
+        k.addEventListener('click', () => {
+          SoundEngine.tap();
+          const v = k.dataset.nk;
+          if (!dirty) { raw = ''; dirty = true; }
+          if (v === ',') { if (raw.includes(',')) return; raw = raw || '0'; raw += ','; }
+          else { const ci = raw.indexOf(','); if (ci >= 0 && raw.length - ci >= 3) return; raw = raw === '0' ? v : raw + v; }
+          _sync();
+        });
+      });
+      document.getElementById('nkp-del').addEventListener('click', () => {
+        if (!dirty) { raw = ''; dirty = true; } raw = raw.slice(0, -1); _sync();
+      });
+      document.getElementById('nkp-confirm').addEventListener('click', () => {
+        const val = parseFloat(raw.replace(',', '.')) || 0;
+        if (_cb) _cb(val); _close();
+      });
+    },
+  };
+})();
+
+
+/* ════════════════════════════════════════════════════════
+   07. CHILD UI
+   Rendu de la vue Cassandre. Aucun état local : tout vient
+   du StorageEngine, re-rendu complet à chaque mutation.
+   ════════════════════════════════════════════════════════ */
+const ChildUI = (() => {
+
+  const _renderBalance = () => {
+    const u   = StorageEngine.getUser();
+    const bal = Math.round((u.currentBalance + u.gains_missions) * 100) / 100;
+    const el  = document.getElementById('balance-display');
+    const prev = parseFloat(el.dataset.val ?? 0);
+    el.dataset.val = bal;
+
+    const [ip, dp] = bal.toFixed(2).split('.');
+    document.getElementById('bal-int').textContent = ip;
+    document.getElementById('bal-dec').textContent = ',' + dp + '\u202f€';
+
+    if (bal !== prev) {
+      el.classList.remove('is-bumping');
+      void el.offsetWidth;
+      el.classList.add('is-bumping');
+    }
+
+    document.getElementById('balance-eyebrow').textContent = `Le Butin de ${u.childName} 💰`;
+
+    const disc = document.getElementById('balance-disclaimer');
+    disc.innerHTML = u.lastUpdatedAt
+      ? `Ce solde ne reflète pas ton argent réel.<br><span style="opacity:.75">MàJ le ${Fmt.date(u.lastUpdatedAt)}.</span>`
+      : 'Ce solde ne reflète pas ton argent réel.';
+  };
+
+  const _renderProgress = () => {
+    const ms     = MissionsLoader.get();
+    const earned = ms.filter(m => m.status === 'completed').reduce((s,m) => s+m.reward, 0);
+    const total  = ms.reduce((s,m) => s+m.reward, 0);
+    const pct    = total > 0 ? Math.min(100, earned/total*100) : 0;
+    document.getElementById('prog-fill').style.width      = pct + '%';
+    document.getElementById('prog-earned').textContent    = (earned > 0 ? '+' : '') + Fmt.euroClean(earned);
+    document.getElementById('prog-max').textContent       = '+' + Fmt.euroClean(total);
+  };
+
+  const _renderGoal = (animate = false) => {
+    const u  = StorageEngine.getUser();
+    const gA = u.goalA || {};
+    const gB = u.goalB || {};
+    const hasA = gA.price > 0;
+    const hasB = gB.price > 0;
+    const both = hasA && hasB;
+
+    const noGoalEl  = document.getElementById('no-goal-msg');
+    const contentEl = document.getElementById('goal-content');
+    const card      = document.getElementById('goal-card');
+    const dotsEl    = document.getElementById('goal-dots');
+
+    /* Aucun objectif actif */
+    if (!hasA && !hasB) {
+      noGoalEl.style.display  = 'block';
+      contentEl.style.display = 'none';
+      card.classList.remove('is-switchable');
+      card.onclick = null;
+      return;
+    }
+
+    /* Objectif à afficher */
+    const g = (u.activeGoal === 'B' && hasB) ? gB : gA;
+    noGoalEl.style.display  = 'none';
+    contentEl.style.display = 'flex';
+
+    if (animate) {
+      contentEl.classList.remove('goal-anim');
+      void contentEl.offsetWidth;
+      contentEl.classList.add('goal-anim');
+    }
+
+    document.getElementById('goal-emoji').textContent  = g.emoji || '🎯';
+    document.getElementById('goal-name').textContent   = g.name  || '';
+    /* Prix cible sans décimales si entier */
+    const priceDisplay = g.price % 1 === 0
+      ? Math.round(g.price) + '\u202f€'
+      : Fmt.euroClean(g.price);
+    document.getElementById('goal-target').textContent = priceDisplay;
+
+    /* Progression ring */
+    const displayBal = u.currentBalance + u.gains_missions;
+    const pct  = Math.min(100, (displayBal / g.price) * 100);
+    const circ = 2 * Math.PI * 27;
+    document.getElementById('ring-fill').style.strokeDashoffset = circ * (1 - pct / 100);
+
+    /* Dots A/B */
+    if (both) {
+      dotsEl.style.display = 'flex';
+      document.getElementById('dot-a').classList.toggle('is-active', u.activeGoal !== 'B');
+      document.getElementById('dot-b').classList.toggle('is-active', u.activeGoal === 'B');
+      card.classList.add('is-switchable');
+      card.onclick = () => {
+        StorageEngine.setUser({ activeGoal: u.activeGoal === 'B' ? 'A' : 'B' });
+        _renderGoal(true);
+      };
+    } else {
+      dotsEl.style.display = 'none';
+      card.classList.remove('is-switchable');
+      card.onclick = null;
+    }
+  };
+
+  const _renderInvest = () => {
+    const u     = StorageEngine.getUser();
+    const bonus = Math.round((u.currentBalance + u.gains_missions) * 0.01 * 100) / 100;
+    document.getElementById('invest-amount').textContent = '+' + Fmt.euroClean(bonus);
+  };
+
+const _renderMissions = () => {
+    const track = document.getElementById('missions-track');
+    track.innerHTML = '';
+    
+    // Définition de l'ordre des priorités (1 = en premier, 3 = en dernier)
+    const order = { 'available': 1, 'pending': 2, 'completed': 3 };
+    
+    // Récupération et tri des missions
+    const sortedMissions = MissionsLoader.get().sort((a, b) => {
+      return (order[a.status] || 1) - (order[b.status] || 1);
+    });
+
+    // Injection des cartes triées dans le carrousel
+    sortedMissions.forEach(m => track.appendChild(_buildCard(m)));
+  };
+
+const _buildCard = (mission) => {
+    const LABEL = { available:'Dispo', pending:'En attente…', completed:'Terminé !' };
+    const BADGE = { available:'', pending:'⏳', completed:'✅' };
+    const streak = mission.isDaily && mission.streak > 0
+      ? `<span style="font-size:10px;color:var(--pending);font-weight:700;margin-top:var(--s1)">🔥 ${mission.streak} j.</span>`
+      : '';
+
+    const wrap = document.createElement('div');
+    wrap.className = 'm-card';
+    wrap.dataset.id = mission.id;
+
+    wrap.innerHTML = `
+      <div class="m-card-inner">
+        <div class="m-face m-front${mission.status==='pending'?' is-pending':mission.status==='completed'?' is-done':''}">
+          ${BADGE[mission.status] ? `<span class="m-badge">${BADGE[mission.status]}</span>` : ''}
+          <span class="m-emoji">${mission.emoji}</span>
+          <p class="m-title">${mission.title}</p>
+          <p class="m-reward">${Fmt.euroClean(mission.reward)}</p>
+          <span class="m-chip ${mission.status}">${LABEL[mission.status]}</span>
+          ${streak}
+        </div>
+        <div class="m-face m-back">
+          <button class="back-close-btn" data-a="unflip">✕</button>
+          <p class="back-desc">${mission.desc}</p>
+          <button class="back-cta${mission.status!=='available'?' is-locked':''}" data-a="done">
+            ${mission.status==='available' ? 'J\'ai fini ! 🚀' : LABEL[mission.status]}
+          </button>
+        </div>
+      </div>`;
+
+    /* ── Events carte ── */
+    wrap.querySelector('.m-front').addEventListener('click', () => {
+      if (mission.status !== 'available') return;
+      SoundEngine.tap();
+      wrap.classList.add('is-flipped');
+    });
+
+    wrap.querySelector('.m-back').addEventListener('click', e => {
+      if (e.target.closest('[data-a="done"]')) return;
+      SoundEngine.tap();
+      wrap.classList.remove('is-flipped');
+    });
+
+    wrap.querySelector('[data-a="done"]').addEventListener('click', e => {
+      e.stopPropagation();
+      if (mission.status !== 'available') return;
+      SoundEngine.tap();
+      MissionsLoader.updateState(mission.id, { status:'pending' });
+      StorageEngine.pushHistory({ emoji:mission.emoji, label:`${mission.title} — en attente`, amount:mission.reward, type:'pending' });
+      wrap.classList.remove('is-flipped');
+      renderAll();
+    });
+
+    return wrap;
+  };
+
+  const renderHistory = () => {
+    const h  = StorageEngine.getHistory();
+    const el = document.getElementById('history-content');
+    if (!h.length) {
+      el.innerHTML = '<p class="history-empty">Aucune activité ce mois-ci — lance-toi ! 🚀</p>';
+      return;
+    }
+    el.innerHTML = h.map(e => {
+      const pos  = e.amount >= 0;
+      const sign = pos ? '+' : '−';
+      return `
+        <div class="hist-item">
+          <div class="hist-icon">${e.emoji || '💰'}</div>
+          <div style="flex:1;min-width:0">
+            <p class="hist-label">${e.label}</p>
+            <p class="hist-date">${Fmt.date(e.ts)}</p>
+          </div>
+          <p class="hist-amount ${pos?'pos':'neg'}">${sign}${Fmt.euro(Math.abs(e.amount))}</p>
+        </div>`;
+    }).join('');
+  };
+
+  const renderAll = () => {
+    _renderBalance();
+    _renderProgress();
+    _renderGoal();
+    _renderInvest();
+    _renderMissions();
+  };
+
+  return { renderAll, renderHistory };
+})();
+
+
+/* ════════════════════════════════════════════════════════
+   06. PARENT UI
+   Dashboard parent : solde, validation, paramètres, reset.
+   ════════════════════════════════════════════════════════ */
+const ParentUI = (() => {
+
+  const _loadSettings = () => {
+    const u  = StorageEngine.getUser();
+    const gA = u.goalA || {};
+    const gB = u.goalB || {};
+    BalKeypad.refreshDisp();
+    /* Titres dynamiques */
+    document.getElementById('parent-solde-title').textContent  = `💰 Solde de ${u.childName}`;
+    document.getElementById('allowance-label').textContent     = `Argent de poche mensuel indicatif de ${u.childName}`;
+    /* Pool */
+    document.getElementById('pool-amt').textContent            = Fmt.euroClean(u.gains_missions);
+    document.getElementById('btn-reset-pool').disabled         = u.gains_missions <= 0;
+    /* Paramètres */
+    document.getElementById('s-child-name').value              = u.childName;
+    document.getElementById('s-allowance-val').textContent     = Fmt.euroClean(u.baseAllowance);
+    /* Objectif A */
+    document.getElementById('sg-a-emoji').value                = gA.emoji || '';
+    document.getElementById('sg-a-name').value                 = gA.name  || '';
+    document.getElementById('sg-a-price-val').textContent      = gA.price > 0 ? Fmt.euroClean(gA.price) : '—';
+    document.getElementById('sg-a-price-tap').dataset.price    = gA.price || 0;
+    /* Objectif B */
+    document.getElementById('sg-b-emoji').value                = gB.emoji || '';
+    document.getElementById('sg-b-name').value                 = gB.name  || '';
+    document.getElementById('sg-b-price-val').textContent      = gB.price > 0 ? Fmt.euroClean(gB.price) : '—';
+    document.getElementById('sg-b-price-tap').dataset.price    = gB.price || 0;
+    document.getElementById('s-pin').value                     = '';
+  };
+
+  const _renderPending = () => {
+    const u       = StorageEngine.getUser();
+    const pending = MissionsLoader.get().filter(m => m.status === 'pending');
+    const el      = document.getElementById('pending-list');
+
+    /* Montant épargne = 10 % × (solde + gains_missions) */
+    const epargneAmt  = Math.round((u.currentBalance + u.gains_missions) * 0.10 * 100) / 100;
+    const epargneDisabled = pending.length > 0;          /* bloquée tant que missions en attente */
+    const epargneClass    = epargneDisabled ? ' style="opacity:.4;pointer-events:none"' : '';
+
+    /* Libellé du bouton Épargne */
+    const eBtn = u.epargneValidated
+      ? `<span style="font-size:13px;color:var(--success)">✅ Validée</span>`
+      : `<button class="btn-ok" id="btn-validate-epargne"${epargneDisabled?' disabled':''}>✅</button>`;
+
+    if (!pending.length && u.epargneValidated) {
+      el.innerHTML = '<p class="empty-state">Aucune mission en attente 🎉</p>';
+      return;
+    }
+
+    let html = pending.map(m => `
+      <div class="p-mission-row">
+        <span class="pm-emoji">${m.emoji}</span>
+        <div class="pm-info">
+          <p class="pm-name">${m.title}</p>
+          <p class="pm-rew">+${Fmt.euroClean(m.reward)}</p>
+        </div>
+        <div class="pm-actions">
+          <button class="btn-ok" data-id="${m.id}" data-act="ok">✅</button>
+          <button class="btn-ko" data-id="${m.id}" data-act="ko">❌</button>
+        </div>
+      </div>`).join('');
+
+    /* Mission Épargne — toujours en dernier */
+    if (!u.epargneValidated) {
+      html += `
+        <div class="p-mission-row"${epargneClass}>
+          <span class="pm-emoji">📈</span>
+          <div class="pm-info">
+            <p class="pm-name">Épargne</p>
+            <p class="pm-rew">+${Fmt.euroClean(epargneAmt)}
+              <span style="font-size:10px;opacity:.6">&nbsp;(10 % du solde)</span>
+            </p>
+          </div>
+          <div class="pm-actions">${eBtn}</div>
+        </div>`;
+    }
+
+    el.innerHTML = html || '<p class="empty-state">Aucune mission en attente 🎉</p>';
+
+    el.querySelectorAll('[data-act="ok"]').forEach(b => b.addEventListener('click', () => _validate(b.dataset.id)));
+    el.querySelectorAll('[data-act="ko"]').forEach(b => b.addEventListener('click', () => _reject(b.dataset.id)));
+
+    const btnEp = document.getElementById('btn-validate-epargne');
+    if (btnEp) btnEp.addEventListener('click', () => _validateEpargne(epargneAmt));
+  };
+
+  const _validateEpargne = (montant) => {
+    const u = StorageEngine.getUser();
+    const newGains = Math.round((u.gains_missions + montant) * 100) / 100;
+    StorageEngine.setUser({ gains_missions: newGains, epargneValidated: true });
+    StorageEngine.pushHistory({ emoji:'📈', label:`Épargne validée`, amount: montant, type:'epargne' });
+    SoundEngine.coin(); ConfettiEngine.burst();
+    renderAll(); ChildUI.renderAll();
+  };
+
+  const _renderAllMissions = () => {
+    const ICON   = { available:'🟢', pending:'🟠', completed:'✅' };
+    const LABELS = { available:'Disponible', pending:'En attente', completed:'Accomplie' };
+    document.getElementById('all-missions-list').innerHTML =
+      MissionsLoader.get().map(m => `
+        <div class="p-mission-row">
+          <span class="pm-emoji">${m.emoji}</span>
+          <div class="pm-info">
+            <p class="pm-name">${m.title}</p>
+            <p class="pm-rew">${ICON[m.status]} ${m.status === 'available' ? '+' + Fmt.euroClean(m.reward) : LABELS[m.status]}</p>
+          </div>
+        </div>`).join('');
+  };
+
+  const _validate = (id) => {
+    const mission = MissionsLoader.get().find(m => m.id === id);
+    if (!mission) return;
+    const u        = StorageEngine.getUser();
+    const newGains = Math.round((u.gains_missions + mission.reward) * 100) / 100;
+
+    MissionsLoader.updateState(id, { status:'completed', streak:(mission.streak ?? 0)+1 });
+    StorageEngine.setUser({ gains_missions: newGains, lastUpdatedAt: new Date().toISOString() });
+    StorageEngine.pushHistory({ emoji:mission.emoji, label:`${mission.title} validée ✅`, amount:mission.reward, type:'reward' });
+
+    SoundEngine.coin();
+    ConfettiEngine.burst();
+    renderAll();
+    ChildUI.renderAll();
+  };
+
+  const _reject = (id) => {
+    MissionsLoader.updateState(id, { status:'available' });
+    renderAll();
+    ChildUI.renderAll();
+  };
+
+  const renderAll = () => { _loadSettings(); _renderPending(); _renderAllMissions(); };
+
+  return { renderAll };
+})();
+
+
+/* ════════════════════════════════════════════════════════
+   07. PIN CONTROLLER
+   4 chiffres, vérification, shake CSS sur erreur.
+   ════════════════════════════════════════════════════════ */
+const PinController = (() => {
+  let input  = '';
+  const OVL  = document.getElementById('pin-overlay');
+  const ERR  = document.getElementById('pin-error');
+  const SHEET= OVL.querySelector('.pin-sheet');
+  const DOTS = [0,1,2,3].map(i => document.getElementById(`pd-${i}`));
+
+  const _sync  = () => DOTS.forEach((d,i) => d.classList.toggle('is-filled', i < input.length));
+  const _reset = () => { input = ''; _sync(); ERR.textContent = ''; };
+
+  const _verify = () => {
+    if (input === StorageEngine.getUser().pin) {
+      _close(); Router.showParent();
+    } else {
+      SoundEngine.error();
+      ERR.textContent = 'Code incorrect, réessaie !';
+      SHEET.classList.add('is-shaking');
+      SHEET.addEventListener('animationend', () => { SHEET.classList.remove('is-shaking'); _reset(); }, { once:true });
+    }
+  };
+
+  document.querySelectorAll('.pin-key[data-k]').forEach(k => {
+    k.addEventListener('click', () => {
+      SoundEngine.unlock();
+      if (input.length >= 4) return;
+      input += k.dataset.k; _sync();
+      if (input.length === 4) setTimeout(_verify, 80);
+    });
+  });
+  document.getElementById('pin-del').addEventListener('click', () => { input = input.slice(0,-1); _sync(); });
+  document.getElementById('pin-cancel').addEventListener('click', _close);
+
+  function _open()  { _reset(); OVL.classList.add('is-open'); }
+  function _close() { OVL.classList.remove('is-open'); _reset(); }
+
+  return { open: _open, close: _close };
+})();
+
+
+/* ════════════════════════════════════════════════════════
+   08. ROUTER
+   Bascule de vues. Aucun rechargement de page.
+   ════════════════════════════════════════════════════════ */
+const Router = (() => {
+  const VIEWS = {
+    child:  document.getElementById('view-child'),
+    parent: document.getElementById('view-parent'),
+  };
+  const _show = name => Object.entries(VIEWS).forEach(([k,el]) => el.classList.toggle('is-hidden', k!==name));
+
+  return {
+    showChild()  { _show('child');  ChildUI.renderAll(); },
+    showParent() { _show('parent'); ParentUI.renderAll(); },
+  };
+})();
+
+
+/* ════════════════════════════════════════════════════════
+   09. EVENT BINDINGS
+   ════════════════════════════════════════════════════════ */
+
+/* Déverrouillage audio iOS au 1er geste utilisateur */
+document.addEventListener('touchstart', () => SoundEngine.unlock(), { once:true, passive:true });
+document.addEventListener('click',      () => SoundEngine.unlock(), { once:true });
+
+/* Navigation parent ↔ enfant */
+document.getElementById('btn-to-parent').addEventListener('click', () => {
+  SoundEngine.unlock(); PinController.open();
+});
+document.getElementById('btn-logout').addEventListener('click', () => Router.showChild());
+
+/* Bottom sheet Historique */
+const _openSheet  = () => {
+  ChildUI.renderHistory();
+  document.getElementById('sheet-history').classList.add('is-open');
+  document.getElementById('overlay').classList.add('is-visible');
+};
+const _closeSheet = () => {
+  document.getElementById('sheet-history').classList.remove('is-open');
+  document.getElementById('overlay').classList.remove('is-visible');
+};
+document.getElementById('btn-history').addEventListener('click', _openSheet);
+document.getElementById('btn-close-history').addEventListener('click', _closeSheet);
+document.getElementById('overlay').addEventListener('click', () => {
+  _closeSheet(); BalKeypad.close(); NumKP.close();
+});
+
+/* Parent — Pool reset : auto-commit gains → currentBalance, puis remise à zéro */
+document.getElementById('btn-reset-pool').addEventListener('click', () => {
+  const u = StorageEngine.getUser();
+  const committed = Math.round((u.currentBalance + u.gains_missions) * 100) / 100;
+  StorageEngine.setUser({
+    currentBalance:   committed,
+    gains_missions:   0,
+    epargneValidated: false,
+    lastUpdatedAt:    new Date().toISOString(),
+  });
+  StorageEngine.pushHistory({ emoji:'💸', label:'Missions versées', amount: u.gains_missions, type:'versement' });
+  SoundEngine.coin(); ParentUI.renderAll(); ChildUI.renderAll();
+});
+
+/* Parent — Argent de poche mensuel : NumKP */
+document.getElementById('s-allowance-tap').addEventListener('click', () => {
+  NumKP.open(StorageEngine.getUser().baseAllowance, 'Argent de poche mensuel', val => {
+    StorageEngine.setUser({ baseAllowance: val });
+    document.getElementById('s-allowance-val').textContent = Fmt.euroClean(val);
+    ChildUI.renderAll();
+  });
+});
+
+/* Parent — Prix objectifs A et B : NumKP */
+['A','B'].forEach(g => {
+  const tapId = `sg-${g.toLowerCase()}-price-tap`;
+  const lblId = `sg-${g.toLowerCase()}-price-val`;
+  document.getElementById(tapId).addEventListener('click', () => {
+    const u    = StorageEngine.getUser();
+    const goal = (g === 'A' ? u.goalA : u.goalB) || {};
+    NumKP.open(goal.price || 0, `Prix objectif ${g}`, val => {
+      document.getElementById(tapId).dataset.price = val;
+      document.getElementById(lblId).textContent   = val > 0 ? Fmt.euroClean(val) : '—';
+    });
+  });
+  document.querySelector(`.btn-g-save[data-g="${g}"]`).addEventListener('click', () => {
+    const key   = g === 'A' ? 'goalA' : 'goalB';
+    const emoji = document.getElementById(`sg-${g.toLowerCase()}-emoji`).value.trim();
+    const name  = document.getElementById(`sg-${g.toLowerCase()}-name`).value.trim();
+    const price = parseFloat(document.getElementById(tapId).dataset.price) || 0;
+    StorageEngine.setUser({ [key]: { emoji, name, price } });
+    SoundEngine.coin(); ChildUI.renderAll();
+    const btn = document.querySelector(`.btn-g-save[data-g="${g}"]`);
+    btn.textContent = '✓'; setTimeout(() => btn.textContent = '✓', 1000);
+  });
+});
+
+/* Parent — Enregistrer les paramètres (texte + PIN) */
+document.getElementById('btn-save-settings').addEventListener('click', () => {
+  const patch = { childName: document.getElementById('s-child-name').value.trim() || 'Cassandre' };
+  const newPin = document.getElementById('s-pin').value;
+  if (/^\d{4}$/.test(newPin)) patch.pin = newPin;
+  StorageEngine.setUser(patch);
+  SoundEngine.coin(); ChildUI.renderAll();
+  const btn = document.getElementById('btn-save-settings');
+  btn.textContent = '✓ Enregistré !';
+  setTimeout(() => btn.textContent = 'Enregistrer', 1600);
+});
+
+/* Parent — Reset mensuel (5 étapes) */
+document.getElementById('btn-monthly-reset').addEventListener('click', () => {
+  const ok = confirm(
+    '⚠️ Reset mensuel\n\n'
+    + '1. Versement de l\'argent de poche fixe\n'
+    + '2. Toutes les missions remises à "Disponible"\n'
+    + '3. Historique vidé\n\n'
+    + 'Action irréversible. Continuer ?'
+  );
+  if (!ok) return;
+
+  const u      = StorageEngine.getUser();
+  const newBal = Math.round((u.currentBalance + u.gains_missions + u.baseAllowance) * 100) / 100;
+
+  StorageEngine.setUser({ currentBalance:newBal, gains_missions:0, epargneValidated:false, lastUpdatedAt:new Date().toISOString() });
+  StorageEngine.resetMissionStates();
+  StorageEngine.clearHistory();
+  StorageEngine.pushHistory({ emoji:'🏠', label:`Versement mensuel fixe`, amount:u.baseAllowance, type:'allowance' });
+
+  SoundEngine.coin();
+  ConfettiEngine.burst();
+  ParentUI.renderAll();
+  ChildUI.renderAll();
+
+  const btn = document.getElementById('btn-monthly-reset');
+  btn.textContent = '✓ Reset effectué !';
+  setTimeout(() => btn.textContent = '🔄 Lancer le Reset Mensuel', 2500);
+});
+
+
+/* ════════════════════════════════════════════════════════
+   10. BOOTSTRAP
+   ════════════════════════════════════════════════════════ */
+StorageEngine.init();
+BalKeypad.init();
+NumKP.init();
+
+/* MissionsLoader.load() : tente fetch missions.json,
+   fallback embarqué si échec → l'app s'affiche toujours. */
+MissionsLoader.load()
+  .then(() => Router.showChild())
+  .catch(() => Router.showChild());
+
+
+/* ════════════════════════════════════════════════════════
+   11. SERVICE WORKER REGISTRATION
+   ════════════════════════════════════════════════════════ */
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () =>
+    navigator.serviceWorker.register('./sw.js')
+      .catch(err => console.warn('[SW]', err))
+  );
+}
+</script>
+</body>
+</html>

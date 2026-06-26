@@ -1,0 +1,66 @@
+[
+  {
+    "id": "m1",
+    "emoji": "🍳",
+    "title": "Cuisiner un repas",
+    "desc": "Préparer une recette simple de A à Z et ranger le plan de travail.",
+    "reward": 2.00,
+    "isDaily": false
+  },
+  {
+    "id": "m2",
+    "emoji": "📚",
+    "title": "Lire & Résumer",
+    "desc": "Lire un chapitre entier et le raconter oralement à ton papa.",
+    "reward": 1.50,
+    "isDaily": false
+  },
+  {
+    "id": "m3",
+    "emoji": "🏆",
+    "title": "Bulletin scolaire",
+    "desc": "Bonus exceptionnel pour d'excellentes appréciations de tes enseignants.",
+    "reward": 1.00,
+    "isDaily": false
+  },
+  {
+    "id": "m4",
+    "emoji": "🛏️",
+    "title": "Chambre impeccable",
+    "desc": "Lit fait, bureau en ordre, sol dégagé pour l'aspirateur.",
+    "reward": 3.00,
+    "isDaily": true
+  },
+  {
+    "id": "m5",
+    "emoji": "⏰",
+    "title": "Zéro-rush le matin",
+    "desc": "Être prête à l'heure pile, sans aucun rappel de ton papa.",
+    "reward": 0.50,
+    "isDaily": true
+  },
+  {
+    "id": "m6",
+    "emoji": "📱",
+    "title": "Maîtrise du temps d'écran",
+    "desc": "Ça sera dur, mais tu peux le faire.",
+    "reward": 1.50,
+    "isDaily": true
+  },
+  {
+    "id": "m7",
+    "emoji": "🎬",
+    "title": "Podcast & Documentaire",
+    "desc": "Regarder un contenu éducatif et citer 3 choses apprises.",
+    "reward": 1.00,
+    "isDaily": false
+  },
+  {
+    "id": "m8",
+    "emoji": "📖",
+    "title": "Mots compliqués",
+    "desc": "Apprendre la définition de 3 nouveaux mots et les utiliser dans une phrase.",
+    "reward": 1.00,
+    "isDaily": false
+  }
+]
