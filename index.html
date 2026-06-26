@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
 
   <!-- ── iOS PWA faux plein écran ── -->
   <meta name="mobile-web-app-capable"            content="yes">
@@ -70,8 +70,13 @@
       box-sizing: border-box; margin: 0; padding: 0;
       -webkit-tap-highlight-color: transparent;
     }
-    html, body {
-      height: 100%; overflow: hidden; /* body bloqué, scroll géré par views */
+    html {
+      height: 100%; height: 100dvh;
+      overflow: hidden; background: #000;
+    }
+    body {
+      height: 100%; height: 100dvh;
+      overflow: hidden; /* body bloqué, scroll géré par views */
       font-family: var(--font);
       background: var(--bg-body);
       color: var(--tx-dark);
@@ -114,11 +119,13 @@
     #view-child { background: var(--bg-body); }
 
     .child-header {
-      display: flex; align-items: center; justify-content: space-between;
-      /* max() garantit un minimum même sans notch */
+      display: flex; align-items: center; justify-content: center;
+      position: relative;
       padding: max(var(--s4), calc(var(--sat) + var(--s2))) var(--s4) var(--s2);
       flex-shrink: 0;
     }
+    /* Bouton parent ancré à droite sans perturber le centrage du logo */
+    .child-header .btn-icon { position: absolute; right: var(--s4); }
     .app-logo { font-size: 22px; font-weight: 800; letter-spacing: -.5px; }
 
     .btn-icon {
@@ -754,7 +761,7 @@
           <!-- Contenu objectif (masqué si vide) -->
           <div id="goal-content" style="display:none;flex-direction:column;align-items:center;gap:4px;width:100%">
             <div class="goal-ring-wrap">
-              <span class="goal-emoji-center" id="goal-emoji">🎮</span>
+              <span class="goal-emoji-center" id="goal-emoji">🐭</span>
               <svg class="goal-ring-svg" viewBox="0 0 60 60">
                 <circle class="ring-track" cx="30" cy="30" r="27"/>
                 <circle class="ring-fill"  cx="30" cy="30" r="27" id="ring-fill"/>
@@ -780,7 +787,7 @@
 
       <!-- Carrousel de missions -->
       <section class="missions-section">
-        <h2 class="section-heading">Mes Missions ⚡</h2>
+        <h2 class="section-heading">Mes Missions 🚀</h2>
         <div class="missions-track" id="missions-track"><!-- injecté par JS --></div>
       </section>
 
@@ -841,7 +848,7 @@
         <p class="p-card-title">🎯 Objectifs</p>
         <!-- Objectif A -->
         <div class="goal-row">
-          <input type="text"   class="inp-g-emoji" id="sg-a-emoji" placeholder="🎮" maxlength="2">
+          <input type="text"   class="inp-g-emoji" id="sg-a-emoji" placeholder="🐭" maxlength="2">
           <input type="text"   class="inp-g-name"  id="sg-a-name"  placeholder="Nom" maxlength="22">
           <div class="num-tap num-tap-sm" id="sg-a-price-tap">
             <span class="num-tap-val" id="sg-a-price-val">—</span>
@@ -875,7 +882,7 @@
         </div>
         <div class="setting-row">
           <p class="setting-label">Nouveau code PIN (4 chiffres)</p>
-          <input type="password" inputmode="numeric" maxlength="4" class="setting-input" id="s-pin" placeholder="••••">
+          <input type="password" inputmode="numeric" maxlength="6" class="setting-input" id="s-pin" placeholder="••••••">
         </div>
         <button class="btn-save-settings" id="btn-save-settings">Enregistrer</button>
       </div>
@@ -887,7 +894,7 @@
           Verse l'argent de poche fixe, remet toutes les missions à "Disponible"
           et efface l'historique. Action irréversible.
         </p>
-        <button class="btn-reset" id="btn-monthly-reset">🔄 Lancer le Reset Mensuel</button>
+        <button class="btn-reset" id="btn-monthly-reset">Mois suivant</button>
       </div>
 
     </div>
@@ -965,12 +972,14 @@
   <div class="pin-overlay" id="pin-overlay">
     <div class="pin-sheet">
       <p class="pin-title">🔐 Accès Parent</p>
-      <p class="pin-sub">Entre ton code PIN à 4 chiffres</p>
+      <p class="pin-sub">Entre ton code PIN à 6 chiffres</p>
       <div class="pin-dots">
         <div class="pin-dot" id="pd-0"></div>
         <div class="pin-dot" id="pd-1"></div>
         <div class="pin-dot" id="pd-2"></div>
         <div class="pin-dot" id="pd-3"></div>
+        <div class="pin-dot" id="pd-4"></div>
+        <div class="pin-dot" id="pd-5"></div>
       </div>
       <div class="pin-keypad">
         <button class="pin-key" data-k="1">1</button>
@@ -1010,21 +1019,21 @@ const StorageEngine = (() => {
       baseAllowance:  20,
       gains_missions: 0,
       epargneValidated: false,
-      goalA: { emoji:'🎮', name:'Mon objectif', price:40 },
+      goalA: { emoji:'🐭', name:'Souris', price:110 },
       goalB: { emoji:'',   name:'',             price:0  },
       activeGoal:     'A',
-      pin:            '1234',
+      pin:            '123456',
       lastUpdatedAt:  null,
     },
     missions: [
       { id:'m1', emoji:'🍳', title:'Cuisiner un repas',
         desc:'Préparer une recette simple de A à Z et ranger le plan de travail.',
         reward:2.00, status:'available', streak:0, isDaily:false },
-      { id:'m2', emoji:'📚', title:'Lire & Résumer',
-        desc:'Lire un chapitre entier et le raconter oralement à tes parents.',
+      { id:'m2', emoji:'📚', title:'Lire & résumer',
+        desc:'Lire un chapitre entier et le raconter oralement à ton papa.',
         reward:1.50, status:'available', streak:0, isDaily:false },
       { id:'m3', emoji:'🏆', title:'Bulletin scolaire',
-        desc:'Bonus exceptionnel pour d\'excellentes appréciations de tes enseignants.',
+        desc:'Aucune note catastophique ce mois-ci.',
         reward:3.00, status:'available', streak:0, isDaily:false },
       { id:'m4', emoji:'🛏️', title:'Chambre impeccable',
         desc:'Lit fait, jouets rangés dans les bacs, sol dégagé pour l\'aspirateur.',
@@ -1033,9 +1042,9 @@ const StorageEngine = (() => {
         desc:'Être prête à l\'heure pile, sans aucun rappel de tes parents.',
         reward:0.50, status:'available', streak:0, isDaily:true },
       { id:'m6', emoji:'📱', title:'Temps d\'écran OK',
-        desc:'Éteindre les écrans immédiatement quand la minuterie convenue sonne.',
+        desc:'Ça sera dur, mais tu peux le faire !',
         reward:0.50, status:'available', streak:0, isDaily:true },
-      { id:'m7', emoji:'🎬', title:'Podcast & Documentaire',
+      { id:'m7', emoji:'🎬', title:'Podcast & documentaire',
         desc:'Regarder un contenu éducatif et citer 3 choses apprises.',
         reward:1.00, status:'available', streak:0, isDaily:false },
       { id:'m8', emoji:'📖', title:'Mots compliqués',
@@ -1335,7 +1344,7 @@ const BalKeypad = (() => {
       const diff = Math.round((val - old) * 100) / 100;
       StorageEngine.setUser({ currentBalance: val, gains_missions: 0, lastUpdatedAt: new Date().toISOString() });
       if (diff !== 0) StorageEngine.pushHistory({ emoji:'✏️', label:'Ajustement manuel du solde', amount:diff, type:'adjustment' });
-      _refreshDisp(); SoundEngine.coin(); ChildUI.renderAll(); close();
+      _refreshDisp(); SoundEngine.coin(); ChildUI.renderAll(); ParentUI.renderAll(); close();
     });
   }
 
@@ -1413,7 +1422,8 @@ const ChildUI = (() => {
       el.classList.add('is-bumping');
     }
 
-    document.getElementById('balance-eyebrow').textContent = `Le Butin de ${u.childName} 💰`;
+    document.getElementById('balance-eyebrow').innerHTML =
+      `Le Butin de ${u.childName} <span style="font-size:1.2em">💰</span>`;
 
     const disc = document.getElementById('balance-disclaimer');
     disc.innerHTML = u.lastUpdatedAt
@@ -1757,7 +1767,7 @@ const PinController = (() => {
   const OVL  = document.getElementById('pin-overlay');
   const ERR  = document.getElementById('pin-error');
   const SHEET= OVL.querySelector('.pin-sheet');
-  const DOTS = [0,1,2,3].map(i => document.getElementById(`pd-${i}`));
+  const DOTS = [0,1,2,3,4,5].map(i => document.getElementById(`pd-${i}`));
 
   const _sync  = () => DOTS.forEach((d,i) => d.classList.toggle('is-filled', i < input.length));
   const _reset = () => { input = ''; _sync(); ERR.textContent = ''; };
@@ -1776,9 +1786,9 @@ const PinController = (() => {
   document.querySelectorAll('.pin-key[data-k]').forEach(k => {
     k.addEventListener('click', () => {
       SoundEngine.unlock();
-      if (input.length >= 4) return;
+      if (input.length >= 6) return;
       input += k.dataset.k; _sync();
-      if (input.length === 4) setTimeout(_verify, 80);
+      if (input.length === 6) setTimeout(_verify, 80);
     });
   });
   document.getElementById('pin-del').addEventListener('click', () => { input = input.slice(0,-1); _sync(); });
@@ -1890,7 +1900,7 @@ document.getElementById('s-allowance-tap').addEventListener('click', () => {
 document.getElementById('btn-save-settings').addEventListener('click', () => {
   const patch = { childName: document.getElementById('s-child-name').value.trim() || 'Cassandre' };
   const newPin = document.getElementById('s-pin').value;
-  if (/^\d{4}$/.test(newPin)) patch.pin = newPin;
+  if (/^\d{6}$/.test(newPin)) patch.pin = newPin;
   StorageEngine.setUser(patch);
   SoundEngine.coin(); ChildUI.renderAll();
   const btn = document.getElementById('btn-save-settings');

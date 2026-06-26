@@ -10,7 +10,7 @@
   {
     "id": "m2",
     "emoji": "📚",
-    "title": "Lire & Résumer",
+    "title": "Lire & résumer",
     "desc": "Lire un chapitre entier et le raconter oralement à ton papa.",
     "reward": 1.50,
     "isDaily": false
@@ -19,7 +19,7 @@
     "id": "m3",
     "emoji": "🏆",
     "title": "Bulletin scolaire",
-    "desc": "Bonus exceptionnel pour d'excellentes appréciations de tes enseignants.",
+    "desc": "Aucune note catastophique ce mois-ci.",
     "reward": 1.00,
     "isDaily": false
   },
@@ -43,14 +43,14 @@
     "id": "m6",
     "emoji": "📱",
     "title": "Maîtrise du temps d'écran",
-    "desc": "Ça sera dur, mais tu peux le faire.",
+    "desc": "Ça sera dur, mais tu peux le faire !",
     "reward": 1.50,
     "isDaily": true
   },
   {
     "id": "m7",
     "emoji": "🎬",
-    "title": "Podcast & Documentaire",
+    "title": "Podcast & documentaire",
     "desc": "Regarder un contenu éducatif et citer 3 choses apprises.",
     "reward": 1.00,
     "isDaily": false
