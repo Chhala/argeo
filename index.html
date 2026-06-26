@@ -71,16 +71,21 @@
       -webkit-tap-highlight-color: transparent;
     }
     html {
-      height: 100%; height: 100dvh;
+      height: -webkit-fill-available;
+      height: 100dvh;
       overflow: hidden; background: #000;
+      overscroll-behavior: none;
     }
     body {
-      height: 100%; height: 100dvh;
-      overflow: hidden; /* body bloqué, scroll géré par views */
+      height: 100%;
+      min-height: -webkit-fill-available;
+      min-height: 100dvh;
+      overflow: hidden;
       font-family: var(--font);
       background: var(--bg-body);
       color: var(--tx-dark);
       -webkit-font-smoothing: antialiased;
+      overscroll-behavior: none;
     }
     button {
       font-family: inherit; border: none; background: none;
@@ -881,8 +886,8 @@
           </div>
         </div>
         <div class="setting-row">
-          <p class="setting-label">Nouveau code PIN (4 chiffres)</p>
-          <input type="password" inputmode="numeric" maxlength="6" class="setting-input" id="s-pin" placeholder="••••••">
+          <p class="setting-label">Nouveau code PIN (5 chiffres)</p>
+          <input type="password" inputmode="numeric" maxlength="5" class="setting-input" id="s-pin" placeholder="•••••">
         </div>
         <button class="btn-save-settings" id="btn-save-settings">Enregistrer</button>
       </div>
@@ -894,7 +899,7 @@
           Verse l'argent de poche fixe, remet toutes les missions à "Disponible"
           et efface l'historique. Action irréversible.
         </p>
-        <button class="btn-reset" id="btn-monthly-reset">Mois suivant</button>
+        <button class="btn-reset" id="btn-monthly-reset">Passer au mois suivant</button>
       </div>
 
     </div>
@@ -972,14 +977,13 @@
   <div class="pin-overlay" id="pin-overlay">
     <div class="pin-sheet">
       <p class="pin-title">🔐 Accès Parent</p>
-      <p class="pin-sub">Entre ton code PIN à 6 chiffres</p>
+      <p class="pin-sub">Entre ton code PIN à 5 chiffres</p>
       <div class="pin-dots">
         <div class="pin-dot" id="pd-0"></div>
         <div class="pin-dot" id="pd-1"></div>
         <div class="pin-dot" id="pd-2"></div>
         <div class="pin-dot" id="pd-3"></div>
         <div class="pin-dot" id="pd-4"></div>
-        <div class="pin-dot" id="pd-5"></div>
       </div>
       <div class="pin-keypad">
         <button class="pin-key" data-k="1">1</button>
@@ -1016,13 +1020,13 @@ const StorageEngine = (() => {
     user: {
       childName:      'Cassandre',
       currentBalance: 0,
-      baseAllowance:  20,
+      baseAllowance:  8,
       gains_missions: 0,
       epargneValidated: false,
       goalA: { emoji:'🐭', name:'Souris', price:110 },
       goalB: { emoji:'',   name:'',             price:0  },
       activeGoal:     'A',
-      pin:            '123456',
+      pin:            '12345',
       lastUpdatedAt:  null,
     },
     missions: [
@@ -1427,7 +1431,7 @@ const ChildUI = (() => {
 
     const disc = document.getElementById('balance-disclaimer');
     disc.innerHTML = u.lastUpdatedAt
-      ? `Ce solde ne reflète pas ton argent réel.<br><span style="opacity:.75">MàJ le ${Fmt.date(u.lastUpdatedAt)}.</span>`
+      ? `Ce solde ne reflète pas ton argent réel.<br>MàJ le ${Fmt.date(u.lastUpdatedAt)}.`
       : 'Ce solde ne reflète pas ton argent réel.';
   };
 
@@ -1767,7 +1771,7 @@ const PinController = (() => {
   const OVL  = document.getElementById('pin-overlay');
   const ERR  = document.getElementById('pin-error');
   const SHEET= OVL.querySelector('.pin-sheet');
-  const DOTS = [0,1,2,3,4,5].map(i => document.getElementById(`pd-${i}`));
+  const DOTS = [0,1,2,3,4].map(i => document.getElementById(`pd-${i}`));
 
   const _sync  = () => DOTS.forEach((d,i) => d.classList.toggle('is-filled', i < input.length));
   const _reset = () => { input = ''; _sync(); ERR.textContent = ''; };
@@ -1786,9 +1790,9 @@ const PinController = (() => {
   document.querySelectorAll('.pin-key[data-k]').forEach(k => {
     k.addEventListener('click', () => {
       SoundEngine.unlock();
-      if (input.length >= 6) return;
+      if (input.length >= 5) return;
       input += k.dataset.k; _sync();
-      if (input.length === 6) setTimeout(_verify, 80);
+      if (input.length === 5) setTimeout(_verify, 80);
     });
   });
   document.getElementById('pin-del').addEventListener('click', () => { input = input.slice(0,-1); _sync(); });
@@ -1900,7 +1904,7 @@ document.getElementById('s-allowance-tap').addEventListener('click', () => {
 document.getElementById('btn-save-settings').addEventListener('click', () => {
   const patch = { childName: document.getElementById('s-child-name').value.trim() || 'Cassandre' };
   const newPin = document.getElementById('s-pin').value;
-  if (/^\d{6}$/.test(newPin)) patch.pin = newPin;
+  if (/^\d{5}$/.test(newPin)) patch.pin = newPin;
   StorageEngine.setUser(patch);
   SoundEngine.coin(); ChildUI.renderAll();
   const btn = document.getElementById('btn-save-settings');
