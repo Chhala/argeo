@@ -103,6 +103,7 @@
        Les enfants gèrent leurs propres safe-area-inset.
        ══════════════════════════════════════════════════════ */
     #app                { position: fixed; inset: 0; background: var(--bg-body); }
+    body.mode-parent,
     #app.mode-parent    { background: var(--bg-parent); }
 
     /* ══════════════════════════════════════════════════════
@@ -1815,11 +1816,29 @@ const Router = (() => {
     child:  document.getElementById('view-child'),
     parent: document.getElementById('view-parent'),
   };
+  
   const _show = name => Object.entries(VIEWS).forEach(([k,el]) => el.classList.toggle('is-hidden', k!==name));
+  
+  const _updateSystemTheme = color => {
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute('content', color);
+  };
 
   return {
-    showChild()  { document.getElementById('app').classList.remove('mode-parent'); _show('child');  ChildUI.renderAll(); },
-    showParent() { document.getElementById('app').classList.add('mode-parent');    _show('parent'); ParentUI.renderAll(); },
+    showChild()  { 
+      document.body.classList.remove('mode-parent');
+      document.getElementById('app').classList.remove('mode-parent'); 
+      _updateSystemTheme('#C2F552');
+      _show('child');  
+      ChildUI.renderAll(); 
+    },
+    showParent() { 
+      document.body.classList.add('mode-parent');
+      document.getElementById('app').classList.add('mode-parent');    
+      _updateSystemTheme('#080E1C');
+      _show('parent'); 
+      ParentUI.renderAll(); 
+    },
   };
 })();
 
