@@ -102,7 +102,8 @@
        #app couvre TOUT l'écran, y compris la Dynamic Island.
        Les enfants gèrent leurs propres safe-area-inset.
        ══════════════════════════════════════════════════════ */
-    #app { position: fixed; inset: 0; }
+    #app                { position: fixed; inset: 0; background: var(--bg-body); }
+    #app.mode-parent    { background: var(--bg-dark); }
 
     /* ══════════════════════════════════════════════════════
        04. SYSTÈME DE VUES
@@ -1817,8 +1818,8 @@ const Router = (() => {
   const _show = name => Object.entries(VIEWS).forEach(([k,el]) => el.classList.toggle('is-hidden', k!==name));
 
   return {
-    showChild()  { _show('child');  ChildUI.renderAll(); },
-    showParent() { _show('parent'); ParentUI.renderAll(); },
+    showChild()  { document.getElementById('app').classList.remove('mode-parent'); _show('child');  ChildUI.renderAll(); },
+    showParent() { document.getElementById('app').classList.add('mode-parent');    _show('parent'); ParentUI.renderAll(); },
   };
 })();
 
