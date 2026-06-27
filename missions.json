@@ -4,14 +4,14 @@
     "emoji": "🍳",
     "title": "Cuisiner un repas",
     "desc": "Préparer une recette simple de A à Z et ranger le plan de travail.",
-    "reward": 2.00,
+    "reward": 1.00,
     "isDaily": false
   },
   {
     "id": "m2",
     "emoji": "📚",
-    "title": "Lire & résumer",
-    "desc": "Lire un chapitre entier et le raconter oralement à ton papa.",
+    "title": "Lire & raconter",
+    "desc": "Lire/avancer un livre et le raconter oralement à ton papa.",
     "reward": 1.50,
     "isDaily": false
   },
@@ -19,8 +19,8 @@
     "id": "m3",
     "emoji": "🏆",
     "title": "Bulletin scolaire",
-    "desc": "Aucune note catastophique ce mois-ci.",
-    "reward": 1.00,
+    "desc": "Les devoirs faits à l'avance, des efforts validés et les profs fiers de toi.",
+    "reward": 0.50,
     "isDaily": false
   },
   {
@@ -28,7 +28,7 @@
     "emoji": "🛏️",
     "title": "Chambre impeccable",
     "desc": "Lit fait, bureau en ordre, sol dégagé pour l'aspirateur.",
-    "reward": 3.00,
+    "reward": 1.50,
     "isDaily": true
   },
   {
@@ -43,24 +43,24 @@
     "id": "m6",
     "emoji": "📱",
     "title": "Maîtrise du temps d'écran",
-    "desc": "Ça sera dur, mais tu peux le faire !",
-    "reward": 1.50,
+    "desc": "Gère ton temps toute seule ou stoppe dès que ton papa te le demande.",
+    "reward": 2.00,
     "isDaily": true
   },
   {
     "id": "m7",
-    "emoji": "🎬",
+    "emoji": "🧠",
     "title": "Podcast & documentaire",
-    "desc": "Regarder un contenu éducatif et citer 3 choses apprises.",
-    "reward": 1.00,
+    "desc": "Découvrir un contenu enrichissant et partager 3 infos surprenantes.",
+    "reward": 0.50,
     "isDaily": false
   },
   {
     "id": "m8",
     "emoji": "📖",
     "title": "Mots compliqués",
-    "desc": "Apprendre la définition de 3 nouveaux mots et les utiliser dans une phrase.",
-    "reward": 1.00,
+    "desc": "Apprendre 3 nouveaux mots et les utiliser dans une phrase.",
+    "reward": 0.50,
     "isDaily": false
   }
 ]

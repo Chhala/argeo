@@ -1,12 +1,24 @@
 /* ════════════════════════════════════════════════════════
-   ARGEO — Service Worker v2
+   ARGEO — Service Worker v3
    Cache-First global.
-   Network-First pour missions.json : modifiable sans redéploiement.
+   Network-First pour missions.json.
+   Firebase exclus du cache SW (gère son propre offline).
    ════════════════════════════════════════════════════════ */
 
-const CACHE  = 'argeo-v2';
+const CACHE  = 'argeo-v3';
 const CORE   = ['./index.html', './manifest.json'];
 const ASSETS = ['./apple-touch-icon.png', './icon-192.png', './icon-512.png'];
+
+/* Domaines Firebase — jamais mis en cache par le SW */
+const FB_DOMAINS = [
+  'firestore.googleapis.com',
+  'firebase.googleapis.com',
+  'identitytoolkit.googleapis.com',
+  'securetoken.googleapis.com',
+  'firebaseapp.com',
+];
+
+const _isFirebase = url => FB_DOMAINS.some(d => url.includes(d));
 
 /* ── Install ── */
 self.addEventListener('install', event => {
@@ -22,7 +34,9 @@ self.addEventListener('install', event => {
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys()
-      .then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
+      .then(keys => Promise.all(
+        keys.filter(k => k !== CACHE).map(k => caches.delete(k))
+      ))
       .then(() => self.clients.claim())
   );
 });
@@ -31,10 +45,10 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
 
-  /* Network-First pour missions.json
-     → le parent peut modifier/déployer missions.json
-       sans toucher à index.html ni forcer un update SW.
-     → fallback cache si hors-ligne.                        */
+  /* Firebase gère son propre cache offline — on ne touche pas */
+  if (_isFirebase(event.request.url)) return;
+
+  /* Network-First pour missions.json */
   if (event.request.url.includes('missions.json')) {
     event.respondWith(
       fetch(event.request)
