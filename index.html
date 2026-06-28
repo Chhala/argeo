@@ -430,6 +430,28 @@
       <button class="btn-pin-cancel" id="pin-cancel">Annuler</button>
     </div>
   </div>
+
+  <!-- ═══════════════════════════════════════════
+       PAIRING SCREEN — s'affiche quand aucun doc
+       Firestore n'existe pour ce familyId
+       ═══════════════════════════════════════════ -->
+  <div id="pair-overlay" style="position:fixed;inset:0;background:var(--bg-parent);z-index:500;display:none;flex-direction:column;align-items:center;justify-content:center;padding:var(--s6)">
+    <p style="font-size:48px;margin-bottom:var(--s4)">&#x1F44B;</p>
+    <p style="font-size:22px;font-weight:800;color:#fff;margin-bottom:var(--s2);text-align:center">Premi&#xe8;re connexion</p>
+    <p style="font-size:14px;color:rgba(255,255,255,.4);text-align:center;line-height:1.6;margin-bottom:var(--s6)">
+      Demande le <strong style="color:var(--lime)">code famille</strong> &#xe0; ton papa<br>et saisis-le ci-dessous.
+    </p>
+    <input id="pair-code-input" type="text" maxlength="8" autocomplete="off" autocapitalize="characters"
+      style="width:100%;max-width:280px;background:rgba(255,255,255,.08);border:2px solid rgba(255,255,255,.15);border-radius:var(--r-m);padding:var(--s4);color:#fff;font-size:24px;font-weight:800;text-align:center;letter-spacing:4px;font-family:ui-monospace,monospace;outline:none;margin-bottom:var(--s2);text-transform:uppercase"
+      placeholder="EX: A1B2C3D4">
+    <p id="pair-error" style="font-size:13px;color:var(--danger);min-height:20px;margin-bottom:var(--s4);font-weight:600;text-align:center"></p>
+    <button id="pair-confirm" style="width:100%;max-width:280px;padding:var(--s4);background:var(--lime);color:var(--tx-on-lime);border-radius:var(--r-m);font-size:16px;font-weight:800;margin-bottom:var(--s4)">
+      Connecter
+    </button>
+    <button id="pair-skip" style="font-size:13px;color:rgba(255,255,255,.25);padding:var(--s4)">
+      Je suis le parent &#x2014; cr&#xe9;er une nouvelle famille
+    </button>
+  </div>
 </div>
 <script>
 'use strict';
@@ -690,13 +712,38 @@ const FirebaseEngine=(()=>{
         await firebase.auth().signInAnonymously();
         const snap=await _ref().get();
         if(snap.exists){_apply(snap.data());await MissionsLoader.load();ChildUI.renderAll();if(!document.getElementById('view-parent').classList.contains('is-hidden'))ParentUI.renderAll()}
-        else{this.push('user',StorageEngine.getUser());this.push('mission_states',StorageEngine.getMissionStates());this.push('history',StorageEngine.getHistory())}
+        else{PairingScreen.show()}
         _unsub=_ref().onSnapshot({includeMetadataChanges:true},s=>{if(s.metadata.hasPendingWrites)return;if(!s.exists)return;_apply(s.data());ChildUI.renderAll();if(!document.getElementById('view-parent').classList.contains('is-hidden'))ParentUI.renderAll();_ss('online')},e=>{console.warn('[FB] listener:',e.message);_ss('offline')});
         _ss('online');
       }catch(e){console.warn('[FB] init:',e.message);_ss('offline')}
     },
     push(k,v){if(!_db||!_fid)return;_pend[k]=v;clearTimeout(_timer);_timer=setTimeout(_flush,800)},
     stop(){if(_unsub){_unsub();_unsub=null}clearTimeout(_timer)},
+    /* Crée la famille dans Firestore avec l'état local actuel (mode parent) */
+    createFamily(){
+      this.push('user',StorageEngine.getUser());
+      this.push('mission_states',StorageEngine.getMissionStates());
+      this.push('history',StorageEngine.getHistory());
+    },
+    /* Écrit le code d'appairage dans /pairings/{CODE8} — appelé quand le parent affiche le QR */
+    async createPairing(){
+      if(!_db||!_fid)return;
+      const code=_fid.slice(0,8).toUpperCase();
+      try{await _db.collection('pairings').doc(code).set({familyId:_fid,createdAt:firebase.firestore.FieldValue.serverTimestamp()})}
+      catch(e){console.warn('[FB] createPairing:',e.message)}
+    },
+    /* Résout un code 8-char en familyId complet via /pairings/{CODE8} */
+    async resolveCode(code){
+      if(!_db)return null;
+      try{const s=await _db.collection('pairings').doc(code).get();return s.exists?s.data().familyId:null}
+      catch(e){console.warn('[FB] resolveCode:',e.message);return null}
+    },
+    /* Reconnecte avec un nouveau familyId (après saisie du code enfant) */
+    async reconnect(newFid){
+      this.stop();
+      _fid=newFid; _db=null; _pend={};
+      await this.init(newFid);
+    },
   };
 })();
 
@@ -718,7 +765,7 @@ document.getElementById('s-allowance-tap').addEventListener('click',()=>NumKP.op
   document.querySelector(`.btn-g-save[data-g="${g}"]`).addEventListener('click',()=>{const key=g==='A'?'goalA':'goalB';const em=document.getElementById(`sg-${g.toLowerCase()}-emoji`).value.trim();const nm=document.getElementById(`sg-${g.toLowerCase()}-name`).value.trim();const pr=parseFloat(document.getElementById(ti).dataset.price)||0;StorageEngine.setUser({[key]:{emoji:em,name:nm,price:pr}});SoundEngine.coin();ChildUI.renderAll()});
 });
 document.getElementById('btn-save-settings').addEventListener('click',()=>{const p={childName:document.getElementById('s-child-name').value.trim()||'Cassandre'};const np=document.getElementById('s-pin').value;if(/^\d{5}$/.test(np))p.pin=np;StorageEngine.setUser(p);SoundEngine.coin();ChildUI.renderAll();const b=document.getElementById('btn-save-settings');b.textContent='\u2713 Enregistr\xe9 !';setTimeout(()=>b.textContent='Enregistrer',1600)});
-document.getElementById('btn-show-qr').addEventListener('click',()=>{
+document.getElementById('btn-show-qr').addEventListener('click',()=>{FirebaseEngine.createPairing();
   const fid=StorageEngine.getFamilyId(),url=`${location.origin}${location.pathname}?fid=${fid}`;
   const wrap=document.getElementById('qr-wrapper'),cw=document.getElementById('qr-canvas-wrap');
   cw.innerHTML='';wrap.style.display='flex';
@@ -734,6 +781,27 @@ document.getElementById('btn-monthly-reset').addEventListener('click',()=>{
   StorageEngine.pushHistory({emoji:'\u{1F3E0}',label:'Versement mensuel fixe',amount:u.baseAllowance,type:'allowance'});
   SoundEngine.coin();ConfettiEngine.burst();ParentUI.renderAll();ChildUI.renderAll();
   const b=document.getElementById('btn-monthly-reset');b.textContent='\u2713 Reset effectu\xe9 !';setTimeout(()=>b.textContent='Passer au mois suivant',2500);
+});
+
+
+/* ═══════════════════════ PAIRING EVENTS ═══════════════════════ */
+document.getElementById('pair-confirm').addEventListener('click', async () => {
+  const code = PairingScreen.getCode();
+  if (code.length < 8) { PairingScreen.setError('Code trop court (8 caractères).'); return; }
+  PairingScreen.setError('Recherche…');
+  const fid = await FirebaseEngine.resolveCode(code);
+  if (!fid) { PairingScreen.setError('Code introuvable — vérifie et réessaie.'); return; }
+  /* Sauvegarde le nouveau familyId et reconnecte */
+  StorageEngine._writeRaw('familyId', fid);
+  PairingScreen.hide();
+  await FirebaseEngine.reconnect(fid);
+  ChildUI.renderAll();
+});
+
+document.getElementById('pair-skip').addEventListener('click', () => {
+  /* Mode parent — initialise la famille avec l'état local */
+  FirebaseEngine.createFamily();
+  PairingScreen.hide();
 });
 
 /* ═══════════════════════ BOOTSTRAP ═══════════════════════ */
