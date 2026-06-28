@@ -44,7 +44,6 @@
     .btn-icon{width:44px;height:44px;border-radius:var(--r-f);background:rgba(0,0,0,.07);display:flex;align-items:center;justify-content:center;font-size:20px;transition:transform .12s,background .12s}
     .btn-icon:active{transform:scale(.88);background:rgba(0,0,0,.14)}
     #sync-badge{position:absolute;left:var(--s4);font-size:15px;line-height:1;opacity:.2;transition:opacity .4s ease;pointer-events:auto;cursor:pointer;user-select:none}
-    /* Jumelage sheet */
     .pair-digit{width:46px;height:56px;border-radius:var(--r-s);background:rgba(0,0,0,.05);border:2px solid rgba(0,0,0,.10);display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:800;font-variant-numeric:tabular-nums;color:var(--tx-dark);transition:border-color .15s}
     .pair-digit.is-active{border-color:var(--purple)}
     .pair-digit.is-filled{border-color:var(--purple);background:rgba(162,89,247,.08)}
@@ -346,7 +345,7 @@
         <div id="qr-wrapper">
           <div id="qr-canvas-wrap"></div>
           <p class="family-code-display" id="family-code-display">&#x2014;</p>
-          <p class="qr-warning">Cassandre scanne ce QR ou saisit le code &#xe0; 5&#x202f;chiffres dans son app. Le code expire apr&#xe8;s utilisation.</p>
+          <p class="qr-warning">Cassandre scanne ce QR ou saisit le code &#xe0; 5&#x202f;chiffres dans son app.</p>
         </div>
         <div class="sync-status-row">
           <span>&#x2601;&#xFE0F;</span>
@@ -433,8 +432,9 @@
       <p class="pin-error" id="pin-error"></p>
       <button class="btn-pin-cancel" id="pin-cancel">Annuler</button>
     </div>
-  
-  <!-- Sheet jumelage — saisie du code 5 chiffres côté enfant -->
+  </div>
+
+  <!-- Sheet jumelage — saisie code 5 chiffres côté enfant -->
   <div class="k-sheet" id="sheet-jumelage">
     <div class="sheet-handle"></div>
     <p class="k-label" style="font-size:17px;font-weight:800;color:var(--tx-dark);margin-top:var(--s2)">&#x1F517; Code de jumelage</p>
@@ -455,7 +455,6 @@
     <p id="pair-k-error" style="text-align:center;color:var(--danger);font-size:13px;font-weight:600;min-height:20px;padding:var(--s1) 0 var(--s2)"></p>
     <button class="k-confirm" id="pair-k-cancel" style="background:rgba(0,0,0,.07);color:var(--tx-mid);margin-top:0">Annuler</button>
   </div>
-</div>
 </div>
 <script>
 'use strict';
@@ -694,38 +693,38 @@ const Router=(()=>{
 })();
 
 
-/* ═══ JUMELAGE CONTROLLER ═══
-   Gère la saisie du code 5 chiffres côté enfant.
-   Ouvert automatiquement si aucun doc Firestore trouvé,
-   ou manuellement via le badge ☁️. */
+/* ═══ JUMELAGE CONTROLLER ═══════════════════════════════
+   Sheet de saisie du code 5 chiffres côté enfant.
+   Protection ghost-click iOS : l'overlay ignore les clics
+   pendant 400 ms après l'ouverture du sheet.          */
 const JumelageController = (() => {
   let _code = '';
   const _sheet  = () => document.getElementById('sheet-jumelage');
   const _ov     = () => document.getElementById('overlay');
   const _err    = () => document.getElementById('pair-k-error');
-  const _digits = [0,1,2,3,4].map(i => document.getElementById(`pd-c${i}`));
+  /* _digits peuplé à l'exécution du script (DOM déjà prêt) */
+  const _digits = [0,1,2,3,4].map(i => document.getElementById('pd-c' + i));
 
   const _sync = () => {
     _digits.forEach((d, i) => {
+      if (!d) return;
       d.textContent = _code[i] ?? '–';
       d.classList.toggle('is-filled',  i < _code.length);
       d.classList.toggle('is-active',  i === _code.length);
     });
   };
-
-  const _reset = () => { _code = ''; _err().textContent = ''; _sync(); };
+  const _reset = () => { _code = ''; if (_err()) _err().textContent = ''; _sync(); };
 
   const _confirm = async () => {
     if (_code.length < 5) return;
-    _err().textContent = 'Recherche…';
+    if (_err()) _err().textContent = 'Recherche…';
     const fid = await FirebaseEngine.resolveCode(_code);
     if (!fid) {
       SoundEngine.error();
-      _err().textContent = 'Code introuvable — vérifie et réessaie.';
+      if (_err()) _err().textContent = 'Code introuvable — vérifie et réessaie.';
       _code = ''; _sync();
       return;
     }
-    /* Jumelage réussi */
     StorageEngine._writeRaw('familyId', fid);
     close();
     await FirebaseEngine.reconnect(fid);
@@ -733,8 +732,23 @@ const JumelageController = (() => {
     ChildUI.renderAll();
   };
 
-  function open()  { _reset(); _sheet().classList.add('is-open'); _ov().classList.add('is-visible'); }
-  function close() { _sheet().classList.remove('is-open'); _ov().classList.remove('is-visible'); _reset(); }
+  function open() {
+    _reset();
+    const s = _sheet();
+    const ov = _ov();
+    if (!s || !ov) return;
+    s.classList.add('is-open');
+    ov.classList.add('is-visible');
+    /* Protection iOS ghost-click : désactive les clics overlay 400 ms */
+    ov.style.pointerEvents = 'none';
+    setTimeout(() => { ov.style.pointerEvents = ''; }, 400);
+  }
+  function close() {
+    const s = _sheet(), ov = _ov();
+    if (s)  s.classList.remove('is-open');
+    if (ov) { ov.classList.remove('is-visible'); ov.style.pointerEvents = ''; }
+    _reset();
+  }
 
   return {
     open, close,
@@ -745,12 +759,11 @@ const JumelageController = (() => {
         _code += k.dataset.pk; _sync();
         if (_code.length === 5) setTimeout(_confirm, 120);
       }));
-      document.getElementById('pair-k-del').addEventListener('click', () => {
-        _code = _code.slice(0, -1); _sync();
-      });
-      document.getElementById('pair-k-cancel').addEventListener('click', () => {
+      const delBtn = document.getElementById('pair-k-del');
+      if (delBtn) delBtn.addEventListener('click', () => { _code = _code.slice(0, -1); _sync(); });
+      const cancelBtn = document.getElementById('pair-k-cancel');
+      if (cancelBtn) cancelBtn.addEventListener('click', () => {
         close();
-        /* Si annulation sans jumelage + pas de doc famille : créer la famille (mode parent) */
         FirebaseEngine.createFamily();
       });
     },
@@ -791,7 +804,6 @@ const FirebaseEngine=(()=>{
           },e=>{console.warn('[FB] listener:',e.message);_ss('offline')});
           _ss('online');
         }else{
-          /* Aucun doc Firestore pour ce familyId → jumelage requis */
           JumelageController.open();
           _ss('offline');
         }
@@ -799,30 +811,10 @@ const FirebaseEngine=(()=>{
     },
     push(k,v){if(!_db||!_fid)return;_pend[k]=v;clearTimeout(_timer);_timer=setTimeout(_flush,800)},
     stop(){if(_unsub){_unsub();_unsub=null}clearTimeout(_timer)},
-    /* Lit /pairings/{code} et retourne le familyId ou null */
-    async resolveCode(code){
-      if(!_db)return null;
-      try{const s=await _db.collection('pairings').doc(code).get();return s.exists?s.data().familyId:null}
-      catch(e){console.warn('[FB] resolveCode:',e.message);return null}
-    },
-    /* Écrit /pairings/{code} depuis le mode parent */
-    async createPairing(code,familyId){
-      if(!_db)return;
-      try{await _db.collection('pairings').doc(code).set({familyId,createdAt:new Date().toISOString()})}
-      catch(e){console.warn('[FB] createPairing:',e.message)}
-    },
-    /* Crée le doc famille avec l'état local (parent premier lancement) */
-    createFamily(){
-      this.push('user',StorageEngine.getUser());
-      this.push('mission_states',StorageEngine.getMissionStates());
-      this.push('history',StorageEngine.getHistory());
-    },
-    /* Coupe l'écouteur et relance init() avec le nouveau familyId */
-    async reconnect(newFid){
-      this.stop();
-      _fid=newFid; _pend={};
-      await this.init(newFid);
-    },
+    async resolveCode(code){if(!_db)return null;try{const s=await _db.collection('pairings').doc(code).get();return s.exists?s.data().familyId:null}catch(e){console.warn('[FB] resolveCode:',e.message);return null}},
+    async createPairing(code,familyId){if(!_db)return;try{await _db.collection('pairings').doc(code).set({familyId,createdAt:new Date().toISOString()})}catch(e){console.warn('[FB] createPairing:',e.message)}},
+    createFamily(){this.push('user',StorageEngine.getUser());this.push('mission_states',StorageEngine.getMissionStates());this.push('history',StorageEngine.getHistory())},
+    async reconnect(newFid){this.stop();_fid=newFid;_pend={};await this.init(newFid)},
   };
 })();
 
@@ -830,7 +822,7 @@ const FirebaseEngine=(()=>{
 document.addEventListener('touchstart',()=>SoundEngine.unlock(),{once:true,passive:true});
 document.addEventListener('click',()=>SoundEngine.unlock(),{once:true});
 document.getElementById('btn-to-parent').addEventListener('click',()=>{SoundEngine.unlock();PinController.open()});
-document.getElementById('sync-badge').addEventListener('click',()=>{JumelageController.open()});
+document.getElementById('sync-badge').addEventListener('click',()=>JumelageController.open());
 document.getElementById('btn-logout').addEventListener('click',()=>Router.showChild());
 const _os=()=>{ChildUI.renderHistory();document.getElementById('sheet-history').classList.add('is-open');document.getElementById('overlay').classList.add('is-visible')};
 const _cs=()=>{document.getElementById('sheet-history').classList.remove('is-open');document.getElementById('overlay').classList.remove('is-visible')};
@@ -852,14 +844,10 @@ document.getElementById('btn-show-qr').addEventListener('click', async () => {
   const cw   = document.getElementById('qr-canvas-wrap');
   const cEl  = document.getElementById('family-code-display');
   cw.innerHTML = ''; wrap.style.display = 'flex';
-  /* Affichage du code en grand */
   cEl.textContent = code;
-  cEl.style.fontSize    = '52px';
-  cEl.style.letterSpacing = '10px';
-  /* QR code du code seul (pas d'URL) */
+  cEl.style.fontSize = '52px'; cEl.style.letterSpacing = '10px';
   if (window.QRCode) new QRCode(cw, {text:code, width:180, height:180, correctLevel:QRCode.CorrectLevel.M});
   else cw.innerHTML = `<p style="color:var(--lime);font-size:60px;font-weight:900;font-family:ui-monospace,monospace;letter-spacing:8px">${code}</p>`;
-  /* Persistance dans Firestore */
   await FirebaseEngine.createPairing(code, fid);
 });
 document.getElementById('btn-monthly-reset').addEventListener('click',()=>{
