@@ -670,7 +670,7 @@ const PinController=(()=>{
   const DOTS=[0,1,2,3,4].map(i=>document.getElementById(`pd-${i}`));
   const _s=()=>DOTS.forEach((d,i)=>d.classList.toggle('is-filled',i<input.length));
   const _r=()=>{input='';_s();ERR.textContent=''};
-  const _v=()=>{if(input===StorageEngine.getUser().pin){_close();Router.showParent()}else{SoundEngine.error();ERR.textContent='Code incorrect, r\xe9essaie !';SHEET.classList.add('is-shaking');SHEET.addEventListener('animationend',()=>{SHEET.classList.remove('is-shaking');_r()},{once:true})}};
+  const _v=async()=>{ERR.textContent='Sync…';await Promise.race([FirebaseEngine.ready,new Promise(r=>setTimeout(r,5000))]);ERR.textContent='';if(input===StorageEngine.getUser().pin){_close();Router.showParent()}else{SoundEngine.error();ERR.textContent='Code incorrect, r\xe9essaie !';SHEET.classList.add('is-shaking');SHEET.addEventListener('animationend',()=>{SHEET.classList.remove('is-shaking');_r()},{once:true})}};
   document.querySelectorAll('.pin-key[data-k]').forEach(k=>k.addEventListener('click',()=>{SoundEngine.unlock();if(input.length>=5)return;input+=k.dataset.k;_s();if(input.length===5)setTimeout(_v,80)}));
   document.getElementById('pin-del').addEventListener('click',()=>{input=input.slice(0,-1);_s()});
   document.getElementById('pin-cancel').addEventListener('click',_close);
@@ -692,7 +692,12 @@ const Router=(()=>{
 /* ═══════════════════════ FIREBASE ENGINE ═══════════════════════ */
 const FirebaseEngine=(()=>{
   const CFG={apiKey:'AIzaSyA7MF3Bdn1-pMCT_bKpBsLyS58nFRvlvJ4',authDomain:'argeo-pwa.firebaseapp.com',projectId:'argeo-pwa',storageBucket:'argeo-pwa.firebasestorage.app',messagingSenderId:'251241569324',appId:'1:251241569324:web:89510a9803144494450589'};
-  let _db=null,_fid=null,_unsub=null,_timer=null,_pend={};
+  let _db=null,_fid=null,_uid=null,_unsub=null,_timer=null,_pend={};
+  /* Promise résolue dès que la 1ère synchro Firestore est terminée
+     (ou après 5 s en cas de timeout offline) */
+  let _readyResolve=null;
+  const _ready=new Promise(res=>{_readyResolve=res});
+  let _rdyTimer=setTimeout(()=>{if(_readyResolve){_readyResolve();_readyResolve=null}},5000);
   const _ss=s=>{
     const IC={offline:'\u{1F4F5}',syncing:'\u23F3',online:'\u2601\uFE0F'},LB={offline:'Hors ligne',syncing:'Synchronisation\u2026',online:'Connect\xe9 et synchronis\xe9'};
     const b=document.getElementById('sync-badge'),l=document.getElementById('sync-label');
@@ -709,13 +714,23 @@ const FirebaseEngine=(()=>{
       try{
         if(!firebase.apps.length)firebase.initializeApp(CFG);
         _db=firebase.firestore();_ss('syncing');
-        await firebase.auth().signInAnonymously();
+        await firebase.auth().signInAnonymously().then(c=>_uid=c.user.uid).catch(()=>{});
+        if(!_uid)(await firebase.auth().currentUser)||(_uid=(await firebase.auth().signInAnonymously()).user.uid);
+        /* ── Lookup /devices/{uid} : récupère le familyId depuis un autre contexte iOS ── */
+        if(_uid){
+          const dSnap=await _db.collection('devices').doc(_uid).get();
+          if(dSnap.exists&&dSnap.data().familyId&&dSnap.data().familyId!==_fid){
+            _fid=dSnap.data().familyId;
+            StorageEngine._writeRaw('familyId',_fid);
+          }
+        }
         const snap=await _ref().get();
-        if(snap.exists){_apply(snap.data());await MissionsLoader.load();ChildUI.renderAll();if(!document.getElementById('view-parent').classList.contains('is-hidden'))ParentUI.renderAll()}
-        else{PairingScreen.show()}
+        const _res=()=>{clearTimeout(_rdyTimer);if(_readyResolve){_readyResolve();_readyResolve=null}};
+      if(snap.exists){_apply(snap.data());await MissionsLoader.load();ChildUI.renderAll();if(!document.getElementById('view-parent').classList.contains('is-hidden'))ParentUI.renderAll();_res();this.saveDeviceMapping()}
+        else{PairingScreen.show();_res()}
         _unsub=_ref().onSnapshot({includeMetadataChanges:true},s=>{if(s.metadata.hasPendingWrites)return;if(!s.exists)return;_apply(s.data());ChildUI.renderAll();if(!document.getElementById('view-parent').classList.contains('is-hidden'))ParentUI.renderAll();_ss('online')},e=>{console.warn('[FB] listener:',e.message);_ss('offline')});
         _ss('online');
-      }catch(e){console.warn('[FB] init:',e.message);_ss('offline')}
+      }catch(e){console.warn('[FB] init:',e.message);clearTimeout(_rdyTimer);if(_readyResolve){_readyResolve();_readyResolve=null};_ss('offline')}
     },
     push(k,v){if(!_db||!_fid)return;_pend[k]=v;clearTimeout(_timer);_timer=setTimeout(_flush,800)},
     stop(){if(_unsub){_unsub();_unsub=null}clearTimeout(_timer)},
@@ -739,7 +754,14 @@ const FirebaseEngine=(()=>{
       catch(e){console.warn('[FB] resolveCode:',e.message);return null}
     },
     /* Reconnecte avec un nouveau familyId (après saisie du code enfant) */
-    async reconnect(newFid){
+    async get ready(){return _ready},
+    /* Persiste uid→familyId dans Firestore pour résolution cross-contexte iOS */
+    async saveDeviceMapping(){
+      if(!_db||!_fid||!_uid)return;
+      try{await _db.collection('devices').doc(_uid).set({familyId:_fid})}
+      catch(e){console.warn('[FB] saveDeviceMapping:',e.message)}
+    },
+    reconnect(newFid){
       this.stop();
       _fid=newFid; _db=null; _pend={};
       await this.init(newFid);
@@ -795,12 +817,14 @@ document.getElementById('pair-confirm').addEventListener('click', async () => {
   StorageEngine._writeRaw('familyId', fid);
   PairingScreen.hide();
   await FirebaseEngine.reconnect(fid);
+  FirebaseEngine.saveDeviceMapping();
   ChildUI.renderAll();
 });
 
 document.getElementById('pair-skip').addEventListener('click', () => {
   /* Mode parent — initialise la famille avec l'état local */
   FirebaseEngine.createFamily();
+  FirebaseEngine.saveDeviceMapping();
   PairingScreen.hide();
 });
 
