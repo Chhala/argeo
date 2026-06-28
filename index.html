@@ -43,7 +43,7 @@
     .child-header .btn-icon{position:absolute;right:var(--s4)}
     .btn-icon{width:44px;height:44px;border-radius:var(--r-f);background:rgba(0,0,0,.07);display:flex;align-items:center;justify-content:center;font-size:20px;transition:transform .12s,background .12s}
     .btn-icon:active{transform:scale(.88);background:rgba(0,0,0,.14)}
-    #sync-badge{position:absolute;left:var(--s4);font-size:15px;line-height:1;opacity:.2;transition:opacity .4s ease;pointer-events:none;user-select:none}
+    #sync-badge{position:absolute;left:var(--s4);font-size:15px;line-height:1;opacity:.2;transition:opacity .4s ease;pointer-events:all;cursor:pointer;user-select:none}
     #sync-badge[data-status="online"]{opacity:.8}
     #sync-badge[data-status="syncing"]{opacity:1;animation:spin .9s linear infinite}
     #sync-badge[data-status="offline"]{opacity:.2}
@@ -337,12 +337,12 @@
       </div>
       <div class="p-card">
         <p class="p-card-title">&#x1F4F2; Appairer l'appareil de Cassandre</p>
-        <p class="reset-hint">Affiche ce QR code sur cet &#xe9;cran, puis fais-le scanner par l'appareil de Cassandre. Elle ne devra le faire qu'une seule fois.</p>
-        <button class="btn-save-settings" id="btn-show-qr" style="margin-top:0">Afficher le QR Code</button>
+        <p class="reset-hint">Génère un code de jumelage temporaire. Cassandre devra juste cliquer sur le nuage cloud en haut à gauche de son écran pour le taper.</p>
+        <button class="btn-save-settings" id="btn-show-qr" style="margin-top:0">Afficher le Code de Jumelage</button>
         <div id="qr-wrapper">
           <div id="qr-canvas-wrap"></div>
           <p class="family-code-display" id="family-code-display">&#x2014;</p>
-          <p class="qr-warning">&#x26A0;&#xFE0F; Si l'app ne s'ouvre pas directement, copie le lien<br>et colle-le dans Safari depuis l'&#xe9;cran d'accueil de la PWA.</p>
+          <p class="qr-warning">&#x26A0;&#xFE0F; Ce code est utilisable directement à l'intérieur de la PWA.</p>
         </div>
         <div class="sync-status-row">
           <span>&#x2601;&#xFE0F;</span>
@@ -429,28 +429,6 @@
       <p class="pin-error" id="pin-error"></p>
       <button class="btn-pin-cancel" id="pin-cancel">Annuler</button>
     </div>
-  </div>
-
-  <!-- ═══════════════════════════════════════════
-       PAIRING SCREEN — s'affiche quand aucun doc
-       Firestore n'existe pour ce familyId
-       ═══════════════════════════════════════════ -->
-  <div id="pair-overlay" style="position:fixed;inset:0;background:var(--bg-parent);z-index:500;display:none;flex-direction:column;align-items:center;justify-content:center;padding:var(--s6)">
-    <p style="font-size:48px;margin-bottom:var(--s4)">&#x1F44B;</p>
-    <p style="font-size:22px;font-weight:800;color:#fff;margin-bottom:var(--s2);text-align:center">Premi&#xe8;re connexion</p>
-    <p style="font-size:14px;color:rgba(255,255,255,.4);text-align:center;line-height:1.6;margin-bottom:var(--s6)">
-      Demande le <strong style="color:var(--lime)">code famille</strong> &#xe0; ton papa<br>et saisis-le ci-dessous.
-    </p>
-    <input id="pair-code-input" type="text" maxlength="8" autocomplete="off" autocapitalize="characters"
-      style="width:100%;max-width:280px;background:rgba(255,255,255,.08);border:2px solid rgba(255,255,255,.15);border-radius:var(--r-m);padding:var(--s4);color:#fff;font-size:24px;font-weight:800;text-align:center;letter-spacing:4px;font-family:ui-monospace,monospace;outline:none;margin-bottom:var(--s2);text-transform:uppercase"
-      placeholder="EX: A1B2C3D4">
-    <p id="pair-error" style="font-size:13px;color:var(--danger);min-height:20px;margin-bottom:var(--s4);font-weight:600;text-align:center"></p>
-    <button id="pair-confirm" style="width:100%;max-width:280px;padding:var(--s4);background:var(--lime);color:var(--tx-on-lime);border-radius:var(--r-m);font-size:16px;font-weight:800;margin-bottom:var(--s4)">
-      Connecter
-    </button>
-    <button id="pair-skip" style="font-size:13px;color:rgba(255,255,255,.25);padding:var(--s4)">
-      Je suis le parent &#x2014; cr&#xe9;er une nouvelle famille
-    </button>
   </div>
 </div>
 <script>
@@ -670,7 +648,7 @@ const PinController=(()=>{
   const DOTS=[0,1,2,3,4].map(i=>document.getElementById(`pd-${i}`));
   const _s=()=>DOTS.forEach((d,i)=>d.classList.toggle('is-filled',i<input.length));
   const _r=()=>{input='';_s();ERR.textContent=''};
-  const _v=async()=>{ERR.textContent='Sync…';await Promise.race([FirebaseEngine.ready,new Promise(r=>setTimeout(r,5000))]);ERR.textContent='';if(input===StorageEngine.getUser().pin){_close();Router.showParent()}else{SoundEngine.error();ERR.textContent='Code incorrect, r\xe9essaie !';SHEET.classList.add('is-shaking');SHEET.addEventListener('animationend',()=>{SHEET.classList.remove('is-shaking');_r()},{once:true})}};
+  const _v=()=>{if(input===StorageEngine.getUser().pin){_close();Router.showParent()}else{SoundEngine.error();ERR.textContent='Code incorrect, r\xe9essaie !';SHEET.classList.add('is-shaking');SHEET.addEventListener('animationend',()=>{SHEET.classList.remove('is-shaking');_r()},{once:true})}};
   document.querySelectorAll('.pin-key[data-k]').forEach(k=>k.addEventListener('click',()=>{SoundEngine.unlock();if(input.length>=5)return;input+=k.dataset.k;_s();if(input.length===5)setTimeout(_v,80)}));
   document.getElementById('pin-del').addEventListener('click',()=>{input=input.slice(0,-1);_s()});
   document.getElementById('pin-cancel').addEventListener('click',_close);
@@ -692,12 +670,7 @@ const Router=(()=>{
 /* ═══════════════════════ FIREBASE ENGINE ═══════════════════════ */
 const FirebaseEngine=(()=>{
   const CFG={apiKey:'AIzaSyA7MF3Bdn1-pMCT_bKpBsLyS58nFRvlvJ4',authDomain:'argeo-pwa.firebaseapp.com',projectId:'argeo-pwa',storageBucket:'argeo-pwa.firebasestorage.app',messagingSenderId:'251241569324',appId:'1:251241569324:web:89510a9803144494450589'};
-  let _db=null,_fid=null,_uid=null,_unsub=null,_timer=null,_pend={};
-  /* Promise résolue dès que la 1ère synchro Firestore est terminée
-     (ou après 5 s en cas de timeout offline) */
-  let _readyResolve=null;
-  const _ready=new Promise(res=>{_readyResolve=res});
-  let _rdyTimer=setTimeout(()=>{if(_readyResolve){_readyResolve();_readyResolve=null}},5000);
+  let _db=null,_fid=null,_unsub=null,_timer=null,_pend={};
   const _ss=s=>{
     const IC={offline:'\u{1F4F5}',syncing:'\u23F3',online:'\u2601\uFE0F'},LB={offline:'Hors ligne',syncing:'Synchronisation\u2026',online:'Connect\xe9 et synchronis\xe9'};
     const b=document.getElementById('sync-badge'),l=document.getElementById('sync-label');
@@ -714,58 +687,16 @@ const FirebaseEngine=(()=>{
       try{
         if(!firebase.apps.length)firebase.initializeApp(CFG);
         _db=firebase.firestore();_ss('syncing');
-        await firebase.auth().signInAnonymously().then(c=>_uid=c.user.uid).catch(()=>{});
-        if(!_uid)(await firebase.auth().currentUser)||(_uid=(await firebase.auth().signInAnonymously()).user.uid);
-        /* ── Lookup /devices/{uid} : récupère le familyId depuis un autre contexte iOS ── */
-        if(_uid){
-          const dSnap=await _db.collection('devices').doc(_uid).get();
-          if(dSnap.exists&&dSnap.data().familyId&&dSnap.data().familyId!==_fid){
-            _fid=dSnap.data().familyId;
-            StorageEngine._writeRaw('familyId',_fid);
-          }
-        }
+        await firebase.auth().signInAnonymously();
         const snap=await _ref().get();
-        const _res=()=>{clearTimeout(_rdyTimer);if(_readyResolve){_readyResolve();_readyResolve=null}};
-      if(snap.exists){_apply(snap.data());await MissionsLoader.load();ChildUI.renderAll();if(!document.getElementById('view-parent').classList.contains('is-hidden'))ParentUI.renderAll();_res();this.saveDeviceMapping()}
-        else{PairingScreen.show();_res()}
+        if(snap.exists){_apply(snap.data());await MissionsLoader.load();ChildUI.renderAll();if(!document.getElementById('view-parent').classList.contains('is-hidden'))ParentUI.renderAll()}
+        else{this.push('user',StorageEngine.getUser());this.push('mission_states',StorageEngine.getMissionStates());this.push('history',StorageEngine.getHistory())}
         _unsub=_ref().onSnapshot({includeMetadataChanges:true},s=>{if(s.metadata.hasPendingWrites)return;if(!s.exists)return;_apply(s.data());ChildUI.renderAll();if(!document.getElementById('view-parent').classList.contains('is-hidden'))ParentUI.renderAll();_ss('online')},e=>{console.warn('[FB] listener:',e.message);_ss('offline')});
         _ss('online');
-      }catch(e){console.warn('[FB] init:',e.message);clearTimeout(_rdyTimer);if(_readyResolve){_readyResolve();_readyResolve=null};_ss('offline')}
+      }catch(e){console.warn('[FB] init:',e.message);_ss('offline')}
     },
     push(k,v){if(!_db||!_fid)return;_pend[k]=v;clearTimeout(_timer);_timer=setTimeout(_flush,800)},
     stop(){if(_unsub){_unsub();_unsub=null}clearTimeout(_timer)},
-    /* Crée la famille dans Firestore avec l'état local actuel (mode parent) */
-    createFamily(){
-      this.push('user',StorageEngine.getUser());
-      this.push('mission_states',StorageEngine.getMissionStates());
-      this.push('history',StorageEngine.getHistory());
-    },
-    /* Écrit le code d'appairage dans /pairings/{CODE8} — appelé quand le parent affiche le QR */
-    async createPairing(){
-      if(!_db||!_fid)return;
-      const code=_fid.slice(0,8).toUpperCase();
-      try{await _db.collection('pairings').doc(code).set({familyId:_fid,createdAt:firebase.firestore.FieldValue.serverTimestamp()})}
-      catch(e){console.warn('[FB] createPairing:',e.message)}
-    },
-    /* Résout un code 8-char en familyId complet via /pairings/{CODE8} */
-    async resolveCode(code){
-      if(!_db)return null;
-      try{const s=await _db.collection('pairings').doc(code).get();return s.exists?s.data().familyId:null}
-      catch(e){console.warn('[FB] resolveCode:',e.message);return null}
-    },
-    /* Reconnecte avec un nouveau familyId (après saisie du code enfant) */
-    async get ready(){return _ready},
-    /* Persiste uid→familyId dans Firestore pour résolution cross-contexte iOS */
-    async saveDeviceMapping(){
-      if(!_db||!_fid||!_uid)return;
-      try{await _db.collection('devices').doc(_uid).set({familyId:_fid})}
-      catch(e){console.warn('[FB] saveDeviceMapping:',e.message)}
-    },
-    reconnect(newFid){
-      this.stop();
-      _fid=newFid; _db=null; _pend={};
-      await this.init(newFid);
-    },
   };
 })();
 
@@ -787,14 +718,71 @@ document.getElementById('s-allowance-tap').addEventListener('click',()=>NumKP.op
   document.querySelector(`.btn-g-save[data-g="${g}"]`).addEventListener('click',()=>{const key=g==='A'?'goalA':'goalB';const em=document.getElementById(`sg-${g.toLowerCase()}-emoji`).value.trim();const nm=document.getElementById(`sg-${g.toLowerCase()}-name`).value.trim();const pr=parseFloat(document.getElementById(ti).dataset.price)||0;StorageEngine.setUser({[key]:{emoji:em,name:nm,price:pr}});SoundEngine.coin();ChildUI.renderAll()});
 });
 document.getElementById('btn-save-settings').addEventListener('click',()=>{const p={childName:document.getElementById('s-child-name').value.trim()||'Cassandre'};const np=document.getElementById('s-pin').value;if(/^\d{5}$/.test(np))p.pin=np;StorageEngine.setUser(p);SoundEngine.coin();ChildUI.renderAll();const b=document.getElementById('btn-save-settings');b.textContent='\u2713 Enregistr\xe9 !';setTimeout(()=>b.textContent='Enregistrer',1600)});
-document.getElementById('btn-show-qr').addEventListener('click',()=>{FirebaseEngine.createPairing();
-  const fid=StorageEngine.getFamilyId(),url=`${location.origin}${location.pathname}?fid=${fid}`;
-  const wrap=document.getElementById('qr-wrapper'),cw=document.getElementById('qr-canvas-wrap');
-  cw.innerHTML='';wrap.style.display='flex';
-  if(window.QRCode)new QRCode(cw,{text:url,width:200,height:200,correctLevel:QRCode.CorrectLevel.M});
-  else cw.innerHTML=`<p style="color:#fff;font-size:11px;word-break:break-all;max-width:220px;text-align:center">${url}</p>`;
-  document.getElementById('family-code-display').textContent=fid.slice(0,8).toUpperCase();
+
+// --- MISE À JOUR SYNC CLOUD INTERNE (SYSTÈME DE JUMELAGE SÉCURISÉ) ---
+document.getElementById('btn-show-qr').addEventListener('click', async () => {
+  const fid = StorageEngine.getFamilyId();
+  // Génère un jeton numérique robuste à 5 chiffres (ex: entre 10000 et 99999) pour éviter les zéros en début
+  const code = String(Math.floor(10000 + Math.random() * 90000));
+  const wrap = document.getElementById('qr-wrapper'), cw = document.getElementById('qr-canvas-wrap');
+  
+  cw.innerHTML = '<p style="color:#fff;font-size:12px;text-align:center;padding:10px;">Génération du code cloud...</p>';
+  wrap.style.display = 'flex';
+  
+  if (window.firebase) {
+    try {
+      // Enregistre l'appairage temporaire sur la collection Firestore pairings
+      await firebase.firestore().collection('pairings').doc(code).set({
+        familyId: fid,
+        createdAt: new Date().toISOString()
+      });
+      cw.innerHTML = '';
+      if (window.QRCode) new QRCode(cw, {text: code, width: 200, height: 200, correctLevel: QRCode.CorrectLevel.M});
+      else cw.innerHTML = `<p style="color:#fff;font-size:16px;font-weight:bold;text-align:center">Code : ${code}</p>`;
+      document.getElementById('family-code-display').textContent = code;
+    } catch (e) {
+      cw.innerHTML = `<p style="color:var(--danger);font-size:12px;text-align:center;">Erreur Cloud : ${e.message}</p>`;
+    }
+  } else {
+    cw.innerHTML = '<p style="color:var(--danger);font-size:12px;text-align:center;">Firebase indisponible</p>';
+  }
 });
+
+// Écouteur côté enfant : cliquer sur le nuage déclenche le Keypad Numérique pour s'appairer
+document.getElementById('sync-badge').addEventListener('click', () => {
+  SoundEngine.tap();
+  NumKP.open(0, 'Code de jumelage (5 chiffres)', async (val) => {
+    if (!val || val < 10000 || val > 99999) {
+      alert("Veuillez entrer un code valide à 5 chiffres.");
+      return;
+    }
+    const codeStr = String(Math.round(val));
+    const badge = document.getElementById('sync-badge');
+    if (badge) badge.dataset.status = 'syncing';
+    
+    if (window.firebase) {
+      try {
+        const snap = await firebase.firestore().collection('pairings').doc(codeStr).get();
+        if (snap.exists) {
+          const cloudData = snap.data();
+          // Injection directe de l'identifiant familial et rechargement propre
+          StorageEngine._writeRaw('familyId', cloudData.familyId);
+          alert("Appairage réussi ! Synchronisation du butin en cours...");
+          location.reload();
+        } else {
+          alert("Ce code est introuvable ou a expiré.");
+          if (badge) badge.dataset.status = 'online';
+        }
+      } catch (e) {
+        alert("Erreur de connexion : " + e.message);
+        if (badge) badge.dataset.status = 'offline';
+      }
+    } else {
+      alert("Le module Firebase n'est pas prêt.");
+    }
+  });
+});
+
 document.getElementById('btn-monthly-reset').addEventListener('click',()=>{
   if(!confirm('\u26a0\ufe0f Reset mensuel\n\n1. Versement de l\'argent de poche fixe\n2. Toutes les missions remises \xe0 "Disponible"\n3. Historique vid\xe9\n\nAction irr\xe9versible. Continuer ?'))return;
   const u=StorageEngine.getUser();
@@ -803,29 +791,6 @@ document.getElementById('btn-monthly-reset').addEventListener('click',()=>{
   StorageEngine.pushHistory({emoji:'\u{1F3E0}',label:'Versement mensuel fixe',amount:u.baseAllowance,type:'allowance'});
   SoundEngine.coin();ConfettiEngine.burst();ParentUI.renderAll();ChildUI.renderAll();
   const b=document.getElementById('btn-monthly-reset');b.textContent='\u2713 Reset effectu\xe9 !';setTimeout(()=>b.textContent='Passer au mois suivant',2500);
-});
-
-
-/* ═══════════════════════ PAIRING EVENTS ═══════════════════════ */
-document.getElementById('pair-confirm').addEventListener('click', async () => {
-  const code = PairingScreen.getCode();
-  if (code.length < 8) { PairingScreen.setError('Code trop court (8 caractères).'); return; }
-  PairingScreen.setError('Recherche…');
-  const fid = await FirebaseEngine.resolveCode(code);
-  if (!fid) { PairingScreen.setError('Code introuvable — vérifie et réessaie.'); return; }
-  /* Sauvegarde le nouveau familyId et reconnecte */
-  StorageEngine._writeRaw('familyId', fid);
-  PairingScreen.hide();
-  await FirebaseEngine.reconnect(fid);
-  FirebaseEngine.saveDeviceMapping();
-  ChildUI.renderAll();
-});
-
-document.getElementById('pair-skip').addEventListener('click', () => {
-  /* Mode parent — initialise la famille avec l'état local */
-  FirebaseEngine.createFamily();
-  FirebaseEngine.saveDeviceMapping();
-  PairingScreen.hide();
 });
 
 /* ═══════════════════════ BOOTSTRAP ═══════════════════════ */
