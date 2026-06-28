@@ -43,7 +43,11 @@
     .child-header .btn-icon{position:absolute;right:var(--s4)}
     .btn-icon{width:44px;height:44px;border-radius:var(--r-f);background:rgba(0,0,0,.07);display:flex;align-items:center;justify-content:center;font-size:20px;transition:transform .12s,background .12s}
     .btn-icon:active{transform:scale(.88);background:rgba(0,0,0,.14)}
-    #sync-badge{position:absolute;left:var(--s4);font-size:15px;line-height:1;opacity:.2;transition:opacity .4s ease;pointer-events:all;cursor:pointer;user-select:none}
+    #sync-badge{position:absolute;left:var(--s4);font-size:15px;line-height:1;opacity:.2;transition:opacity .4s ease;pointer-events:auto;cursor:pointer;user-select:none}
+    /* Jumelage sheet */
+    .pair-digit{width:46px;height:56px;border-radius:var(--r-s);background:rgba(0,0,0,.05);border:2px solid rgba(0,0,0,.10);display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:800;font-variant-numeric:tabular-nums;color:var(--tx-dark);transition:border-color .15s}
+    .pair-digit.is-active{border-color:var(--purple)}
+    .pair-digit.is-filled{border-color:var(--purple);background:rgba(162,89,247,.08)}
     #sync-badge[data-status="online"]{opacity:.8}
     #sync-badge[data-status="syncing"]{opacity:1;animation:spin .9s linear infinite}
     #sync-badge[data-status="offline"]{opacity:.2}
@@ -337,12 +341,12 @@
       </div>
       <div class="p-card">
         <p class="p-card-title">&#x1F4F2; Appairer l'appareil de Cassandre</p>
-        <p class="reset-hint">Génère un code de jumelage temporaire. Cassandre devra juste cliquer sur le nuage cloud en haut à gauche de son écran pour le taper.</p>
-        <button class="btn-save-settings" id="btn-show-qr" style="margin-top:0">Afficher le Code de Jumelage</button>
+        <p class="reset-hint">Affiche ce QR code sur cet &#xe9;cran, puis fais-le scanner par l'appareil de Cassandre. Elle ne devra le faire qu'une seule fois.</p>
+        <button class="btn-save-settings" id="btn-show-qr" style="margin-top:0">Afficher le QR Code</button>
         <div id="qr-wrapper">
           <div id="qr-canvas-wrap"></div>
           <p class="family-code-display" id="family-code-display">&#x2014;</p>
-          <p class="qr-warning">&#x26A0;&#xFE0F; Ce code est utilisable directement à l'intérieur de la PWA.</p>
+          <p class="qr-warning">Cassandre scanne ce QR ou saisit le code &#xe0; 5&#x202f;chiffres dans son app. Le code expire apr&#xe8;s utilisation.</p>
         </div>
         <div class="sync-status-row">
           <span>&#x2601;&#xFE0F;</span>
@@ -429,7 +433,29 @@
       <p class="pin-error" id="pin-error"></p>
       <button class="btn-pin-cancel" id="pin-cancel">Annuler</button>
     </div>
+  
+  <!-- Sheet jumelage — saisie du code 5 chiffres côté enfant -->
+  <div class="k-sheet" id="sheet-jumelage">
+    <div class="sheet-handle"></div>
+    <p class="k-label" style="font-size:17px;font-weight:800;color:var(--tx-dark);margin-top:var(--s2)">&#x1F517; Code de jumelage</p>
+    <p style="text-align:center;font-size:13px;color:var(--tx-light);padding:0 var(--s4) var(--s4);line-height:1.55">Saisis le code &#xe0; 5&#x202f;chiffres<br>affich&#xe9; sur l&#x2019;&#xe9;cran de ton papa.</p>
+    <div style="display:flex;justify-content:center;gap:var(--s2);padding:var(--s2) 0 var(--s4)">
+      <div class="pair-digit" id="pd-c0">&#x2013;</div>
+      <div class="pair-digit" id="pd-c1">&#x2013;</div>
+      <div class="pair-digit" id="pd-c2">&#x2013;</div>
+      <div class="pair-digit" id="pd-c3">&#x2013;</div>
+      <div class="pair-digit" id="pd-c4">&#x2013;</div>
+    </div>
+    <div class="k-pad">
+      <button class="k-key" data-pk="1">1</button><button class="k-key" data-pk="2">2</button><button class="k-key" data-pk="3">3</button>
+      <button class="k-key" data-pk="4">4</button><button class="k-key" data-pk="5">5</button><button class="k-key" data-pk="6">6</button>
+      <button class="k-key" data-pk="7">7</button><button class="k-key" data-pk="8">8</button><button class="k-key" data-pk="9">9</button>
+      <button class="k-key is-ghost"></button><button class="k-key" data-pk="0">0</button><button class="k-key k-del" id="pair-k-del">&#x232B;</button>
+    </div>
+    <p id="pair-k-error" style="text-align:center;color:var(--danger);font-size:13px;font-weight:600;min-height:20px;padding:var(--s1) 0 var(--s2)"></p>
+    <button class="k-confirm" id="pair-k-cancel" style="background:rgba(0,0,0,.07);color:var(--tx-mid);margin-top:0">Annuler</button>
   </div>
+</div>
 </div>
 <script>
 'use strict';
@@ -576,7 +602,7 @@ const ChildUI=(()=>{
     if(both){dots.style.display='flex';document.getElementById('dot-a').classList.toggle('is-active',u.activeGoal!=='B');document.getElementById('dot-b').classList.toggle('is-active',u.activeGoal==='B');card.classList.add('is-switchable');card.onclick=()=>{StorageEngine.setUser({activeGoal:u.activeGoal==='B'?'A':'B'});_rg(true)}}
     else{dots.style.display='none';card.classList.remove('is-switchable');card.onclick=null}
   };
-  const _ri=()=>{const u=StorageEngine.getUser(),b=Math.round((u.currentBalance+u.gains_missions)*0.01*100)/100;document.getElementById('invest-amount').textContent='+'+Fmt.euroClean(b)};
+  const _ri=()=>{const u=StorageEngine.getUser(),b=Math.round((u.currentBalance+u.gains_missions)*0.10*100)/100;document.getElementById('invest-amount').textContent='+'+Fmt.euroClean(b)};
   const _rm=()=>{
     const track=document.getElementById('missions-track');track.innerHTML='';
     const ord={'available':1,'pending':2,'completed':3};
@@ -667,6 +693,70 @@ const Router=(()=>{
   };
 })();
 
+
+/* ═══ JUMELAGE CONTROLLER ═══
+   Gère la saisie du code 5 chiffres côté enfant.
+   Ouvert automatiquement si aucun doc Firestore trouvé,
+   ou manuellement via le badge ☁️. */
+const JumelageController = (() => {
+  let _code = '';
+  const _sheet  = () => document.getElementById('sheet-jumelage');
+  const _ov     = () => document.getElementById('overlay');
+  const _err    = () => document.getElementById('pair-k-error');
+  const _digits = [0,1,2,3,4].map(i => document.getElementById(`pd-c${i}`));
+
+  const _sync = () => {
+    _digits.forEach((d, i) => {
+      d.textContent = _code[i] ?? '–';
+      d.classList.toggle('is-filled',  i < _code.length);
+      d.classList.toggle('is-active',  i === _code.length);
+    });
+  };
+
+  const _reset = () => { _code = ''; _err().textContent = ''; _sync(); };
+
+  const _confirm = async () => {
+    if (_code.length < 5) return;
+    _err().textContent = 'Recherche…';
+    const fid = await FirebaseEngine.resolveCode(_code);
+    if (!fid) {
+      SoundEngine.error();
+      _err().textContent = 'Code introuvable — vérifie et réessaie.';
+      _code = ''; _sync();
+      return;
+    }
+    /* Jumelage réussi */
+    StorageEngine._writeRaw('familyId', fid);
+    close();
+    await FirebaseEngine.reconnect(fid);
+    SoundEngine.coin();
+    ChildUI.renderAll();
+  };
+
+  function open()  { _reset(); _sheet().classList.add('is-open'); _ov().classList.add('is-visible'); }
+  function close() { _sheet().classList.remove('is-open'); _ov().classList.remove('is-visible'); _reset(); }
+
+  return {
+    open, close,
+    init() {
+      document.querySelectorAll('.k-key[data-pk]').forEach(k => k.addEventListener('click', () => {
+        SoundEngine.tap();
+        if (_code.length >= 5) return;
+        _code += k.dataset.pk; _sync();
+        if (_code.length === 5) setTimeout(_confirm, 120);
+      }));
+      document.getElementById('pair-k-del').addEventListener('click', () => {
+        _code = _code.slice(0, -1); _sync();
+      });
+      document.getElementById('pair-k-cancel').addEventListener('click', () => {
+        close();
+        /* Si annulation sans jumelage + pas de doc famille : créer la famille (mode parent) */
+        FirebaseEngine.createFamily();
+      });
+    },
+  };
+})();
+
 /* ═══════════════════════ FIREBASE ENGINE ═══════════════════════ */
 const FirebaseEngine=(()=>{
   const CFG={apiKey:'AIzaSyA7MF3Bdn1-pMCT_bKpBsLyS58nFRvlvJ4',authDomain:'argeo-pwa.firebaseapp.com',projectId:'argeo-pwa',storageBucket:'argeo-pwa.firebasestorage.app',messagingSenderId:'251241569324',appId:'1:251241569324:web:89510a9803144494450589'};
@@ -689,14 +779,50 @@ const FirebaseEngine=(()=>{
         _db=firebase.firestore();_ss('syncing');
         await firebase.auth().signInAnonymously();
         const snap=await _ref().get();
-        if(snap.exists){_apply(snap.data());await MissionsLoader.load();ChildUI.renderAll();if(!document.getElementById('view-parent').classList.contains('is-hidden'))ParentUI.renderAll()}
-        else{this.push('user',StorageEngine.getUser());this.push('mission_states',StorageEngine.getMissionStates());this.push('history',StorageEngine.getHistory())}
-        _unsub=_ref().onSnapshot({includeMetadataChanges:true},s=>{if(s.metadata.hasPendingWrites)return;if(!s.exists)return;_apply(s.data());ChildUI.renderAll();if(!document.getElementById('view-parent').classList.contains('is-hidden'))ParentUI.renderAll();_ss('online')},e=>{console.warn('[FB] listener:',e.message);_ss('offline')});
-        _ss('online');
+        if(snap.exists){
+          _apply(snap.data());await MissionsLoader.load();
+          ChildUI.renderAll();
+          if(!document.getElementById('view-parent').classList.contains('is-hidden'))ParentUI.renderAll();
+          _unsub=_ref().onSnapshot({includeMetadataChanges:true},s=>{
+            if(s.metadata.hasPendingWrites)return;if(!s.exists)return;
+            _apply(s.data());ChildUI.renderAll();
+            if(!document.getElementById('view-parent').classList.contains('is-hidden'))ParentUI.renderAll();
+            _ss('online');
+          },e=>{console.warn('[FB] listener:',e.message);_ss('offline')});
+          _ss('online');
+        }else{
+          /* Aucun doc Firestore pour ce familyId → jumelage requis */
+          JumelageController.open();
+          _ss('offline');
+        }
       }catch(e){console.warn('[FB] init:',e.message);_ss('offline')}
     },
     push(k,v){if(!_db||!_fid)return;_pend[k]=v;clearTimeout(_timer);_timer=setTimeout(_flush,800)},
     stop(){if(_unsub){_unsub();_unsub=null}clearTimeout(_timer)},
+    /* Lit /pairings/{code} et retourne le familyId ou null */
+    async resolveCode(code){
+      if(!_db)return null;
+      try{const s=await _db.collection('pairings').doc(code).get();return s.exists?s.data().familyId:null}
+      catch(e){console.warn('[FB] resolveCode:',e.message);return null}
+    },
+    /* Écrit /pairings/{code} depuis le mode parent */
+    async createPairing(code,familyId){
+      if(!_db)return;
+      try{await _db.collection('pairings').doc(code).set({familyId,createdAt:new Date().toISOString()})}
+      catch(e){console.warn('[FB] createPairing:',e.message)}
+    },
+    /* Crée le doc famille avec l'état local (parent premier lancement) */
+    createFamily(){
+      this.push('user',StorageEngine.getUser());
+      this.push('mission_states',StorageEngine.getMissionStates());
+      this.push('history',StorageEngine.getHistory());
+    },
+    /* Coupe l'écouteur et relance init() avec le nouveau familyId */
+    async reconnect(newFid){
+      this.stop();
+      _fid=newFid; _pend={};
+      await this.init(newFid);
+    },
   };
 })();
 
@@ -704,12 +830,13 @@ const FirebaseEngine=(()=>{
 document.addEventListener('touchstart',()=>SoundEngine.unlock(),{once:true,passive:true});
 document.addEventListener('click',()=>SoundEngine.unlock(),{once:true});
 document.getElementById('btn-to-parent').addEventListener('click',()=>{SoundEngine.unlock();PinController.open()});
+document.getElementById('sync-badge').addEventListener('click',()=>{JumelageController.open()});
 document.getElementById('btn-logout').addEventListener('click',()=>Router.showChild());
 const _os=()=>{ChildUI.renderHistory();document.getElementById('sheet-history').classList.add('is-open');document.getElementById('overlay').classList.add('is-visible')};
 const _cs=()=>{document.getElementById('sheet-history').classList.remove('is-open');document.getElementById('overlay').classList.remove('is-visible')};
 document.getElementById('btn-history').addEventListener('click',_os);
 document.getElementById('btn-close-history').addEventListener('click',_cs);
-document.getElementById('overlay').addEventListener('click',()=>{_cs();BalKeypad.close();NumKP.close()});
+document.getElementById('overlay').addEventListener('click',()=>{_cs();BalKeypad.close();NumKP.close();JumelageController.close()});
 document.getElementById('btn-reset-pool').addEventListener('click',()=>{const u=StorageEngine.getUser();StorageEngine.setUser({currentBalance:Math.round((u.currentBalance+u.gains_missions)*100)/100,gains_missions:0,epargneValidated:false,lastUpdatedAt:new Date().toISOString()});StorageEngine.pushHistory({emoji:'\u{1F4B8}',label:'Missions vers\xe9es',amount:u.gains_missions,type:'versement'});SoundEngine.coin();ParentUI.renderAll();ChildUI.renderAll()});
 document.getElementById('s-allowance-tap').addEventListener('click',()=>NumKP.open(StorageEngine.getUser().baseAllowance,'Argent de poche mensuel',val=>{StorageEngine.setUser({baseAllowance:val});document.getElementById('s-allowance-val').textContent=Fmt.euroClean(val);ChildUI.renderAll()}));
 ['A','B'].forEach(g=>{
@@ -718,71 +845,23 @@ document.getElementById('s-allowance-tap').addEventListener('click',()=>NumKP.op
   document.querySelector(`.btn-g-save[data-g="${g}"]`).addEventListener('click',()=>{const key=g==='A'?'goalA':'goalB';const em=document.getElementById(`sg-${g.toLowerCase()}-emoji`).value.trim();const nm=document.getElementById(`sg-${g.toLowerCase()}-name`).value.trim();const pr=parseFloat(document.getElementById(ti).dataset.price)||0;StorageEngine.setUser({[key]:{emoji:em,name:nm,price:pr}});SoundEngine.coin();ChildUI.renderAll()});
 });
 document.getElementById('btn-save-settings').addEventListener('click',()=>{const p={childName:document.getElementById('s-child-name').value.trim()||'Cassandre'};const np=document.getElementById('s-pin').value;if(/^\d{5}$/.test(np))p.pin=np;StorageEngine.setUser(p);SoundEngine.coin();ChildUI.renderAll();const b=document.getElementById('btn-save-settings');b.textContent='\u2713 Enregistr\xe9 !';setTimeout(()=>b.textContent='Enregistrer',1600)});
-
-// --- MISE À JOUR SYNC CLOUD INTERNE (SYSTÈME DE JUMELAGE SÉCURISÉ) ---
 document.getElementById('btn-show-qr').addEventListener('click', async () => {
-  const fid = StorageEngine.getFamilyId();
-  // Génère un jeton numérique robuste à 5 chiffres (ex: entre 10000 et 99999) pour éviter les zéros en début
+  const fid  = StorageEngine.getFamilyId();
   const code = String(Math.floor(10000 + Math.random() * 90000));
-  const wrap = document.getElementById('qr-wrapper'), cw = document.getElementById('qr-canvas-wrap');
-  
-  cw.innerHTML = '<p style="color:#fff;font-size:12px;text-align:center;padding:10px;">Génération du code cloud...</p>';
-  wrap.style.display = 'flex';
-  
-  if (window.firebase) {
-    try {
-      // Enregistre l'appairage temporaire sur la collection Firestore pairings
-      await firebase.firestore().collection('pairings').doc(code).set({
-        familyId: fid,
-        createdAt: new Date().toISOString()
-      });
-      cw.innerHTML = '';
-      if (window.QRCode) new QRCode(cw, {text: code, width: 200, height: 200, correctLevel: QRCode.CorrectLevel.M});
-      else cw.innerHTML = `<p style="color:#fff;font-size:16px;font-weight:bold;text-align:center">Code : ${code}</p>`;
-      document.getElementById('family-code-display').textContent = code;
-    } catch (e) {
-      cw.innerHTML = `<p style="color:var(--danger);font-size:12px;text-align:center;">Erreur Cloud : ${e.message}</p>`;
-    }
-  } else {
-    cw.innerHTML = '<p style="color:var(--danger);font-size:12px;text-align:center;">Firebase indisponible</p>';
-  }
+  const wrap = document.getElementById('qr-wrapper');
+  const cw   = document.getElementById('qr-canvas-wrap');
+  const cEl  = document.getElementById('family-code-display');
+  cw.innerHTML = ''; wrap.style.display = 'flex';
+  /* Affichage du code en grand */
+  cEl.textContent = code;
+  cEl.style.fontSize    = '52px';
+  cEl.style.letterSpacing = '10px';
+  /* QR code du code seul (pas d'URL) */
+  if (window.QRCode) new QRCode(cw, {text:code, width:180, height:180, correctLevel:QRCode.CorrectLevel.M});
+  else cw.innerHTML = `<p style="color:var(--lime);font-size:60px;font-weight:900;font-family:ui-monospace,monospace;letter-spacing:8px">${code}</p>`;
+  /* Persistance dans Firestore */
+  await FirebaseEngine.createPairing(code, fid);
 });
-
-// Écouteur côté enfant : cliquer sur le nuage déclenche le Keypad Numérique pour s'appairer
-document.getElementById('sync-badge').addEventListener('click', () => {
-  SoundEngine.tap();
-  NumKP.open(0, 'Code de jumelage (5 chiffres)', async (val) => {
-    if (!val || val < 10000 || val > 99999) {
-      alert("Veuillez entrer un code valide à 5 chiffres.");
-      return;
-    }
-    const codeStr = String(Math.round(val));
-    const badge = document.getElementById('sync-badge');
-    if (badge) badge.dataset.status = 'syncing';
-    
-    if (window.firebase) {
-      try {
-        const snap = await firebase.firestore().collection('pairings').doc(codeStr).get();
-        if (snap.exists) {
-          const cloudData = snap.data();
-          // Injection directe de l'identifiant familial et rechargement propre
-          StorageEngine._writeRaw('familyId', cloudData.familyId);
-          alert("Appairage réussi ! Synchronisation du butin en cours...");
-          location.reload();
-        } else {
-          alert("Ce code est introuvable ou a expiré.");
-          if (badge) badge.dataset.status = 'online';
-        }
-      } catch (e) {
-        alert("Erreur de connexion : " + e.message);
-        if (badge) badge.dataset.status = 'offline';
-      }
-    } else {
-      alert("Le module Firebase n'est pas prêt.");
-    }
-  });
-});
-
 document.getElementById('btn-monthly-reset').addEventListener('click',()=>{
   if(!confirm('\u26a0\ufe0f Reset mensuel\n\n1. Versement de l\'argent de poche fixe\n2. Toutes les missions remises \xe0 "Disponible"\n3. Historique vid\xe9\n\nAction irr\xe9versible. Continuer ?'))return;
   const u=StorageEngine.getUser();
@@ -797,6 +876,7 @@ document.getElementById('btn-monthly-reset').addEventListener('click',()=>{
 StorageEngine.init();
 BalKeypad.init();
 NumKP.init();
+JumelageController.init();
 FirebaseEngine.init(StorageEngine.getFamilyId());
 MissionsLoader.load().then(()=>Router.showChild()).catch(()=>Router.showChild());
 
