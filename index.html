@@ -492,14 +492,14 @@ const StorageEngine=(()=>{
 
 const MissionsLoader=(()=>{
   const DEF=[
-    {id:'m1',emoji:'\u{1F373}',title:'Cuisiner un repas',desc:'Pr\xe9parer une recette simple de A \xe0 Z et ranger le plan de travail.',reward:1.00,isDaily:false},
-    {id:'m2',emoji:'\u{1F4DA}',title:'Lire & raconter',desc:'Lire/avancer un livre et le raconter oralement \xe0 ton papa.',reward:1.50,isDaily:false},
-    {id:'m3',emoji:'\u{1F3C6}',title:'Bulletin scolaire',desc:'Les devoirs faits \xe0 l\'avance, des efforts valid\xe9s et les profs fiers de toi.',reward:0.50,isDaily:false},
-    {id:'m4',emoji:'\u{1F6CF}\uFE0F',title:'Chambre impeccable',desc:'Lit fait, bureau en ordre, sol d\xe9gag\xe9 pour l\'aspirateur.',reward:1.50,isDaily:true},
-    {id:'m5',emoji:'\u{23F0}',title:'Z\xe9ro-rush le matin',desc:'\xcatre pr\xeate \xe0 l\'heure pile, sans aucun rappel de ton papa.',reward:0.50,isDaily:true},
-    {id:'m6',emoji:'\u{1F4F1}',title:'Ma\xeetrise du temps d\'\xe9cran',desc:'G\xe8re ton temps toute seule ou stoppe d\xe8s que ton papa te le demande.',reward:2.00,isDaily:true},
-    {id:'m7',emoji:'\u{1F9E0}',title:'Podcast & documentaire',desc:'D\xe9couvrir un contenu enrichissant et partager 3 infos surprenantes.',reward:0.50,isDaily:false},
-    {id:'m8',emoji:'\u{1F4D6}',title:'Mots compliqu\xe9s',desc:'Apprendre 3 nouveaux mots et les utiliser dans une phrase.',reward:0.50,isDaily:false},
+    {id:'m1',emoji:'🍳',title:'Cuisiner un repas',desc:'Préparer une recette simple de A à Z et ranger le plan de travail.',reward:1.5,isDaily:false},
+    {id:'m2',emoji:'📚',title:'Lire & raconter',desc:'Lire/avancer un livre et le raconter oralement à ton papa.',reward:2.5,isDaily:false},
+    {id:'m3',emoji:'🏆',title:'Bulletin scolaire',desc:'Les devoirs faits à l\'avance, des efforts validés et les profs fiers de toi.',reward:1.5,isDaily:false},
+    {id:'m4',emoji:'🛏️',title:'Chambre impeccable',desc:'Lit fait, bureau en ordre, sol dégagé pour l\'aspirateur.',reward:2.5,isDaily:true},
+    {id:'m5',emoji:'⏰',title:'Zéro-rush le matin',desc:'Être prête à l\'heure pile, sans aucun rappel de ton papa.',reward:1.0,isDaily:true},
+    {id:'m6',emoji:'📱',title:'Maîtrise du temps d\'écran',desc:'Gère ton temps toute seule ou stoppe dès que ton papa te le demande.',reward:3.0,isDaily:true},
+    {id:'m7',emoji:'🧠',title:'Podcast & documentaire',desc:'Découvrir un contenu enrichissant et partager 3 infos surprenantes.',reward:1.0,isDaily:false},
+    {id:'m8',emoji:'📖',title:'Mots compliqués',desc:'Apprendre 3 nouveaux mots et les utiliser dans une phrase.',reward:1.0,isDaily:false},
   ];
   let _defs=[];
   const _merge=defs=>{const s=StorageEngine.getMissionStates();return defs.map(d=>({...d,status:s[d.id]?.status??'available',streak:s[d.id]?.streak??0}))};
